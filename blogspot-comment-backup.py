@@ -1,11 +1,11 @@
 import requests, json
 
 def get_blog_info(blog):
-    json_loads = json.loads
     #Create a new request session so we can reuse for following requests
     #Results in much faster requests
     session = requests.Session()
     session_get = session.get #A minor speed optimization trick
+    json_loads = json.loads
     #Initialize variables for the while loop
     i = 0
     post_urls = []

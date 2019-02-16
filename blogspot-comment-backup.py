@@ -1,9 +1,5 @@
 import requests, json
 
-#Sample default blog
-#A trailing slash on the URL seems to work OK, even if it processes with a double slash
-blog = 'https://googleblog.blogspot.com'#'https://blogger.googleblog.com'#'https://mytriptoamerica.blogspot.com'
-
 def getbloginfo(blog):
     #Initialize variables for the while loop
     i = 0
@@ -19,7 +15,7 @@ def getbloginfo(blog):
             return "pr" #Private blog
         elif not requestinfo.ok: #Any other error. Should really retry these requests.
             return "oe" #Other error
-        else: #The blog is accessible, procede in retreiving links
+        else: #The blog is accessible, proceed in retreiving links
             myj = json.loads(requestinfo.text)
             myr.extend([myj['feed']['entry'][i]['link'][-1]['href'] for i in range(0, len(myj['feed']['entry']))])
             if len(myj['feed']['entry']) != 150:
@@ -28,7 +24,11 @@ def getbloginfo(blog):
                 i+=1
     return myr #Return the complete list of articles
 
-print(getbloginfo(blog)) #Retrieve the sample blog's articles
+if __name__ == '__main__':
+	#Sample default blog
+	#A trailing slash on the URL seems to work OK, even if it processes with a double slash
+	blog = 'https://googleblog.blogspot.com'#'https://blogger.googleblog.com'#'https://mytriptoamerica.blogspot.com'
+	print(getbloginfo(blog)) #Retrieve the sample blog's articles
 
 #TODO:
 #Report any of the above errors

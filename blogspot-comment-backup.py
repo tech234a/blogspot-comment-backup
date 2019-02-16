@@ -1,20 +1,21 @@
 import requests, json
 
 def get_blog_info(blog):
-
+    json_loads = json.loads
     #Create a new request session so we can reuse for following requests
     #Results in much faster requests
     session = requests.Session()
-
+    session_get = session.get #A minor speed optimization trick
     #Initialize variables for the while loop
     i = 0
     post_urls = []
+    post_urls_extend = post_urls.extend
     complete = False
     while not complete:
         #Can only get 150 blog posts returned even if a higher number is specified
         url = blog + '/feeds/posts/default?max-results=150&alt=json&start-index=' + str((i * 150) + 1)
         print("getting url: " + url)
-        request_info = session.get(url)
+        request_info = session_get(url)
         #Check if the blog exists and is accessible
         if request_info.status_code == 404: #Blog does not exist
             return "nf" #Blog not found
@@ -23,8 +24,8 @@ def get_blog_info(blog):
         elif not request_info.ok: #Any other error. Should really retry these requests.
             return "oe" #Other error
         else: #The blog is accessible, proceed in retreiving links
-            feed_json = json.loads(request_info.text)
-            post_urls.extend([feed_json['feed']['entry'][i]['link'][-1]['href'] for i in range(0, len(feed_json['feed']['entry']))])
+            feed_json = json_loads(request_info.text)
+            post_urls_extend([feed_json['feed']['entry'][i]['link'][-1]['href'] for i in range(0, len(feed_json['feed']['entry']))])
             if len(feed_json['feed']['entry']) != 150:
                 complete = True
             else:

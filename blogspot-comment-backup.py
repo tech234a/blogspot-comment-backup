@@ -3,11 +3,13 @@ import requests, json
 def getbloginfo(blog):
     #Initialize variables for the while loop
     i = 0
-    myr = []
+    post_urls = []
     complete = False
     while complete == False:
         #Can only get 150 blog posts returned even if a higher number is specified
-        requestinfo = requests.get(blog+'/feeds/posts/default?max-results=150&alt=json&start-index='+str((i*150)+1))
+        url = blog + '/feeds/posts/default?max-results=150&alt=json&start-index=' + str((i * 150) + 1)
+        print("getting url: " + url)
+        requestinfo = requests.get(url)
         #Check if the blog exists and is accessible
         if requestinfo.status_code == 404: #Blog does not exist
             return "nf" #Blog not found
@@ -16,19 +18,22 @@ def getbloginfo(blog):
         elif not requestinfo.ok: #Any other error. Should really retry these requests.
             return "oe" #Other error
         else: #The blog is accessible, proceed in retreiving links
-            myj = json.loads(requestinfo.text)
-            myr.extend([myj['feed']['entry'][i]['link'][-1]['href'] for i in range(0, len(myj['feed']['entry']))])
-            if len(myj['feed']['entry']) != 150:
+            feed_json = json.loads(requestinfo.text)
+            post_urls.extend([feed_json['feed']['entry'][i]['link'][-1]['href'] for i in range(0, len(feed_json['feed']['entry']))])
+            if len(feed_json['feed']['entry']) != 150:
                 complete = True
             else:
                 i+=1
-    return myr #Return the complete list of articles
+    return post_urls #Return the complete list of articles
 
 if __name__ == '__main__':
 	#Sample default blog
 	#A trailing slash on the URL seems to work OK, even if it processes with a double slash
 	blog = 'https://googleblog.blogspot.com'#'https://blogger.googleblog.com'#'https://mytriptoamerica.blogspot.com'
-	print(getbloginfo(blog)) #Retrieve the sample blog's articles
+
+	post_urls = getbloginfo(blog) #Retrieve the sample blog's articles
+	print(f"Found {len(post_urls)} post links")
+	print(post_urls)
 
 #TODO:
 #Report any of the above errors

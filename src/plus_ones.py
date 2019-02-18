@@ -1,4 +1,4 @@
-import requests, json, curlify
+import requests, json
 
 from util import remove_xssi_guard
 

@@ -12,7 +12,7 @@ Replies | Comment +1ers | Reply +1ers | JSON Size (kB) | Estimated Network Reque
 ❌ | ✔️ | ❌ | 31  | 2 | ~3.81
 ✔️ | ❌ | ❌ | 111 | 2 | ~2.50
 ✔️ | ✔️ | ❌ | 134 | 3 | ~4.42
-✔️ | ❌ | ✔️ | 137 | 93 | ~21.00
-✔️ | ✔️ | ✔️ | 160 | 94 | ~24.13
+✔️ | ❌ | ✔️ | 137 | 65 | ~21.00
+✔️ | ✔️ | ✔️ | 160 | 66 | ~24.13
 
 \**Network requests are currently synchronous*

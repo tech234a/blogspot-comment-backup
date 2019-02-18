@@ -1,6 +1,6 @@
 import requests, json
 
-def get_blog_info(blog):
+def get_blog_posts(blog):
     json_loads = json.loads
     #Create a new request session so we can reuse for following requests
     #Results in much faster requests
@@ -35,9 +35,9 @@ def get_blog_info(blog):
 if __name__ == '__main__':
 	#Sample default blog
 	#A trailing slash on the URL seems to work OK, even if it processes with a double slash
-	blog = 'https://googleblog.blogspot.com'#'https://blogger.googleblog.com'#'https://mytriptoamerica.blogspot.com'
+	blog = 'https://buzz.blogger.com/'#'https://blogger.googleblog.com'#'https://mytriptoamerica.blogspot.com'
 
-	post_urls = get_blog_info(blog) #Retrieve the sample blog's articles
+	post_urls = get_blog_posts(blog) #Retrieve the sample blog's articles
 	print(f"Found {len(post_urls)} post links")
 	print(post_urls)
 

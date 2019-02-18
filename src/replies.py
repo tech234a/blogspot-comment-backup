@@ -14,21 +14,15 @@ def get_os_u_object(raw_response_text):
     obj = json.loads(raw_response_text)
     return obj[0][1]
 
-def get_raw_replies_list(json_object):
+def get_raw_reply_list(json_object):
     return json_object[7]
 
 def get_replies_from_raw_response(raw_response_text):
     os_u_object = get_os_u_object(raw_response_text)
-    raw_replies = get_raw_replies_list(os_u_object)
+    raw_replies = get_raw_reply_list(os_u_object)
 
-    replies = []
     for reply in raw_replies:
-        replies.append(get_info_from_reply(reply))
-    return replies
-
-def get_replies_from_comment_id(comment_id, post_url, session = None):
-    raw_response_text = fetch_comment_replies(comment_id, post_url, session)
-    return get_replies_from_raw_response(raw_response_text)
+        yield get_info_from_reply(reply)
 
 def get_info_from_reply(reply):
     results = {}
@@ -47,8 +41,8 @@ def get_info_from_reply(reply):
 
     likes_object = reply[15]
     if likes_object:
-        likes = likes_object[16] or 0
-        results["plus_ones"] = likes
+        results["plus_one_id"] = likes_object[0] or None
+        results["plus_one_count"] = likes_object[16] or 0
 
     text_object = reply[27]
     results["text"] = text_object or None
@@ -58,6 +52,10 @@ def get_info_from_reply(reply):
     results["language_display"] = language_object[2] or None
 
     return results
+
+def get_replies_from_comment_id(comment_id, post_url, session = None):
+    raw_response_text = fetch_comment_replies(comment_id, post_url, session)
+    return get_replies_from_raw_response(raw_response_text)
 
 if __name__ == '__main__':
 

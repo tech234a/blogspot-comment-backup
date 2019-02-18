@@ -8,7 +8,7 @@ from util import get_url_path
 if __name__ == '__main__':
 	blog = "https://googleblog.blogspot.com"
 
-	with open("blog_posts.json", "r") as file:
+	with open("../test_data/blog_posts.json", "r") as file:
 		blog_posts = json.loads(file.read())
 
 		posts_finished = 0

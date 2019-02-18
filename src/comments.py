@@ -1,13 +1,14 @@
-import re, json, requests
+import re, json, asyncio, aiohttp
 from time import sleep, perf_counter
 
 from util import get_bracket_pairs, remove_xssi_guard, get_url_path
 from replies import get_replies_from_comment_id
 from plus_ones import get_plus_ones_from_id
 
+blogger_object_pattern = re.compile(r'data:(\["os\.blogger",[\s\S]*?)}\);</script>')
+
 def extract_blogger_object_from_html(html):
-    pat = re.compile(r'data:(\["os\.blogger",[\s\S]*?)}\);</script>')
-    os_blogger = pat.search(html)[1]
+    os_blogger = blogger_object_pattern.search(html)[1]
     parsed = json.loads(os_blogger)
 
     return parsed
@@ -81,37 +82,43 @@ def get_info_from_comment(comment, return_info_list=False):
     else:
         return results  
 
-def fetch_initial_page(post_url, session=None):
+async def fetch_initial_page(post_url, session):
     headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
     params = {"first_party_property": "BLOGGER", "query": post_url}
-    r = session.get("https://apis.google.com/u/0/_/widget/render/comments", params=params, headers=headers)
-    return (r.text, r.status_code)
+    async with session.get("https://apis.google.com/u/0/_/widget/render/comments", params=params, headers=headers) as response:
+        text = await response.text()
+        return (text, response.status)
 
-def fetch_more_comments(continuation_key, post_url, session=None):
+async def fetch_more_comments(continuation_key, post_url, session):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
     data = {"f.req": f'[[null,[[null,null,null,null,2]],[1,[20,\"{continuation_key}\"],null,[[[2,[null,\"\"]]]],true],[100]],[[\"{post_url}\",null,null,null,0,null,\"{post_url}\",null,null,1,[20,null,null,1,null,null,null,1,null,\"fntn\",0,9,0,[\"{post_url}\"],null,null,0],null,null,null,null,1,null,null,null,null,0,null,null,3,1,\"ADSJ_i2qch7-NelDrYpMAgUEL3IyfvpRaOpIlNdE_bvIQ75NJOZBrBOcjySzgO6TLTwV505qclfGXYIJhMfE5caBt_gnFo0oJQMYepGtofNznk9sXjdUpWpbuvR9fVGZg5UE5s63b2jaYidM-u0YJobnkro9YS07tqwxEfgTeBOKzWrTTOVchhsesdkGf_5Bt2nIVwQX-CBt0dMjHSlQOVRDK8lDWMDDmByx31C9iLDhEhuG6dr0IdYCDriTB8orFKbx4AJztSfIqaJgpDhjauRnxyGTfIeDCF615Dhc5oQRNWv5DC3lk0Tdz76D42zH768dAYF1_pyJLZX8CdvH9V2MlBc6bvnCJdZWmHaWi1U17imK\",20,null,null,[null,null,0,0,0],1,0,null,0],\"{post_url}\",\"{post_url}\",[20,null,null,1,null,null,null,1,null,\"fntn\",0,9,0,[\"{post_url}\"],null,null,0],0,\"\"]]'}
-    r = (session if session else requests).post("https://apis.google.com/wm/1/_/sw/bs", data=data, headers=headers)
+    
+    async with session.post("https://apis.google.com/wm/1/_/sw/bs", data=data, headers=headers) as response:
+        text = await response.text()
 
-    response_string = remove_xssi_guard(r.text)
-    blogger_object = json.loads(response_string)[0]
+        response_string = remove_xssi_guard(text)
+        blogger_object = json.loads(response_string)[0]
 
-    return {"comments": get_comments_from_blogger_object(blogger_object), "continuation_key": extract_continuation_key(blogger_object)}
+        return {"comments": get_comments_from_blogger_object(blogger_object), "continuation_key": extract_continuation_key(blogger_object)}
 
-def process_comments(comments, post_url=None, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False, session=None):
-    for comment in comments:
-        if get_replies and comment["reply_count"] > 0:
-            replies = list(get_replies_from_comment_id(comment["id"], post_url, session))
-            comment["replies"] = replies
-            # get plus_ones for replies
-            # idk how to make this more python-y and avoid the nesting
-            if get_reply_plus_ones:
-                for reply in replies:
-                    if reply["plus_one_id"] and reply["plus_one_count"] > 0:
-                        reply["plus_ones"] = list(get_plus_ones_from_id(reply["plus_one_id"], reply["plus_one_count"], session))
+async def process_comments(comments, session, post_url=None, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False):
+    try:
+        for comment in comments:
+            if get_replies and comment["reply_count"] > 0:
+                replies = list(await get_replies_from_comment_id(comment["id"], post_url, session))
+                comment["replies"] = replies
+                # get plus_ones for replies
+                # idk how to make this more python-y and avoid the nesting
+                if get_reply_plus_ones:
+                    for reply in replies:
+                        if reply["plus_one_id"] and reply["plus_one_count"] > 0:
+                            reply["plus_ones"] = list(await get_plus_ones_from_id(reply["plus_one_id"], reply["plus_one_count"], session))
 
 
-        if get_comment_plus_ones and comment["plus_one_id"] and comment["plus_one_count"] > 0:
-            comment["plus_ones"] = list(get_plus_ones_from_id(comment["plus_one_id"], comment["plus_one_count"], session))
+            if get_comment_plus_ones and comment["plus_one_id"] and comment["plus_one_count"] > 0:
+                comment["plus_ones"] = list(await get_plus_ones_from_id(comment["plus_one_id"], comment["plus_one_count"], session))
+    except TypeError as e:
+        raise TypeError("Error with comment: %s" % json.dumps(comments, indent=4)) from e
 
 # Retrieves comments and replies
 # get_all_pages 
@@ -123,16 +130,14 @@ def process_comments(comments, post_url=None, get_replies=False, get_comment_plu
 # get_plus_one_list 
 #   - Retrieve a list of all the authors that +1'd each comment
 #   - An additional network request is made for each comment and reply that has >1 plus_ones
-# session - To reuse an existing requests.Session() object (performance improvement)
-def get_comments_from_post(post_url, get_all_pages=True, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False, session=None):
-    if not session: 
-        session = requests.Session()
+# session - To reuse an existing aiohttp.ClientSession object (performance improvement)
+async def get_comments_from_post(post_url, session, get_all_pages=False, get_replies=True, get_comment_plus_ones=False, get_reply_plus_ones=False):
 
     results = []
     page = 1
     print(f"- Getting comments for: {post_url}")
 
-    fetch_response = fetch_initial_page(post_url, session)
+    fetch_response = await fetch_initial_page(post_url, session)
     print(f"  Received HTML | status: {fetch_response[1]}")
 
     blogger_object = extract_blogger_object_from_html(fetch_response[0])
@@ -143,17 +148,14 @@ def get_comments_from_post(post_url, get_all_pages=True, get_replies=False, get_
     print("    page 1 (%s)" % len(comments))
 
     # Add the comments from the initial html (first 20)
-    try:
-        process_comments(comments, post_url, get_replies, get_comment_plus_ones, get_reply_plus_ones, session=session)
-        results.extend(comments)
-    except TypeError as e:
-        raise TypeError("Error with comment: %s" % json.dumps(comment, indent=4)) from e
-    
+    await process_comments(comments, session, post_url, get_replies, get_comment_plus_ones, get_reply_plus_ones)
+    results.extend(comments)
+
     if get_all_pages:
         continuation_key = extract_continuation_key(blogger_object)
         while True:
             page += 1
-            next_comments = fetch_more_comments(continuation_key, post_url, session)
+            next_comments = await fetch_more_comments(continuation_key, post_url, session)
 
             continuation_key = next_comments["continuation_key"]
             comments = next_comments["comments"]
@@ -161,16 +163,13 @@ def get_comments_from_post(post_url, get_all_pages=True, get_replies=False, get_
             if not len(comments) or not continuation_key: break
 
             print("    page %s (%s)" % (page, len(comments)))
-            try:
-                process_comments(comments, post_url, get_replies, get_comment_plus_ones, get_reply_plus_ones, session=session)
-                results.extend(comments)
-            except TypeError as e:
-                raise TypeError("Error with comment: %s" % json.dumps(comment, indent=4)) from e
+            await process_comments(comments, session, post_url, get_replies, get_comment_plus_ones, get_reply_plus_ones)
+            results.extend(comments)
     print("  Finished")
     return results
 
 
-def test_urls():
+async def test_urls():
     test_urls = [
         # "https://raazwebcity.blogspot.com/2018/05/twitter-to-discontinued.html",
         # "http://raazwebcity.blogspot.com/2018/09/best-wordpress-seo-tips.html",
@@ -178,8 +177,12 @@ def test_urls():
         # "https://blogger-developers.googleblog.com/2013/04/improvements-to-blogger-template-html.html",
         "https://blogger.googleblog.com/2019/01/an-update-on-google-and-blogger.html"
     ]
-    comments = get_comments_from_post(test_urls[0], get_all_pages=True, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False)
-    # print(json.dumps(comments[0], indent=4))
+
+    async with aiohttp.ClientSession() as session:
+        # print(await fetch_initial_page(test_urls[0], session))
+
+        comments = await get_comments_from_post(test_urls[0], session, get_all_pages=False, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False)
+        print(json.dumps(comments[0], indent=4))
 
 if __name__ == '__main__':
-    test_urls()
+    asyncio.run(test_urls())

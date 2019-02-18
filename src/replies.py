@@ -1,12 +1,12 @@
-import json, requests
+import json, asyncio, aiohttp
 from util import remove_xssi_guard
 
-def fetch_comment_replies(comment_id, post_url, session = None):
+async def fetch_comment_replies(comment_id, post_url, session):
     headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
     data = {"f.req": f'["{comment_id}",null,null,null,null,null,null,[20,null,null,1,null,null,null,1,null,"fntn",0,9,0,["{post_url}"],null,null,0],2]'}
-    r = (session if session else requests).post("https://apis.google.com/wm/1/_/stream/getactivity/", data=data, headers=headers)
-
-    return r.text
+    async with session:
+        async with session.post("https://apis.google.com/wm/1/_/stream/getactivity/", data=data, headers=headers) as response:
+            return await response.text()
 
 def get_os_u_object(raw_response_text):
     raw_response_text = remove_xssi_guard(raw_response_text)
@@ -53,15 +53,17 @@ def get_info_from_reply(reply):
 
     return results
 
-def get_replies_from_comment_id(comment_id, post_url, session = None):
-    raw_response_text = fetch_comment_replies(comment_id, post_url, session)
+async def get_replies_from_comment_id(comment_id, post_url, session):
+    raw_response_text = await fetch_comment_replies(comment_id, post_url, session)
     return get_replies_from_raw_response(raw_response_text)
 
-if __name__ == '__main__':
-
+async def test_replies():
     # file = open("../test_data/replies_response.txt", "r", encoding="utf-8").read()
     # replies = get_replies_from_raw_response(file)
-    
-    replies = get_replies_from_comment_id("z120g3vxpu2mtn2ae04cdhjoixeixfyzjso0k", "https://blogger.googleblog.com/2019/01/an-update-on-google-and-blogger.html")
-    for reply in replies:
-        print(json.dumps(reply, indent=4, sort_keys=True))
+    async with aiohttp.ClientSession() as session:
+        replies = await get_replies_from_comment_id("z120g3vxpu2mtn2ae04cdhjoixeixfyzjso0k", "https://blogger.googleblog.com/2019/01/an-update-on-google-and-blogger.html", session)
+        for reply in replies:
+            print(json.dumps(reply, indent=4, sort_keys=True))
+
+if __name__ == '__main__':
+    asyncio.run(test_replies())

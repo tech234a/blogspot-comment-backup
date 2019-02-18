@@ -8,13 +8,7 @@ from plus_ones import get_plus_ones_from_id
 def extract_blogger_object_from_html(html):
     pat = re.compile(r'data:(\["os\.blogger",[\s\S]*?)}\);</script>')
     os_blogger = pat.search(html)[1]
-
-    bracket_pairs = get_bracket_pairs(os_blogger)
-    bracket_start = 0
-    bracket_end = bracket_pairs[bracket_start] + 1
-
-    obj = os_blogger[bracket_start:bracket_end]
-    parsed = json.loads(obj)
+    parsed = json.loads(os_blogger)
 
     return parsed
 
@@ -76,8 +70,9 @@ def get_info_from_comment(comment, return_info_list=False):
     results["text"] = info_list[137] if info_list[137] else None
 
     language_object = info_list[141]
-    results["language_code"] = language_object[0] or None
-    results["language_display"] = language_object[2] or None
+    if len(language_object) == 3: 
+        results["language_code"] = language_object[0] or None
+        results["language_display"] = language_object[2] or None
 
     results["share_string"] = info_list[10] or None
 
@@ -89,8 +84,8 @@ def get_info_from_comment(comment, return_info_list=False):
 def fetch_initial_page(post_url, session=None):
     headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
     params = {"first_party_property": "BLOGGER", "query": post_url}
-    html = session.get("https://apis.google.com/u/0/_/widget/render/comments", params=params, headers=headers).text
-    return html
+    r = session.get("https://apis.google.com/u/0/_/widget/render/comments", params=params, headers=headers)
+    return (r.text, r.status_code)
 
 def fetch_more_comments(continuation_key, post_url, session=None):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
@@ -118,7 +113,7 @@ def process_comments(comments, post_url=None, get_replies=False, get_comment_plu
         if get_comment_plus_ones and comment["plus_one_id"] and comment["plus_one_count"] > 0:
             comment["plus_ones"] = list(get_plus_ones_from_id(comment["plus_one_id"], comment["plus_one_count"], session))
 
-# Retrieves top level comments 
+# Retrieves comments and replies
 # get_all_pages 
 #   - Use the continuation key to get all pages of comments (20 comments per page) 
 #   - The amount of additional network requests is (amount of comments / 20) (excluding replies)
@@ -135,12 +130,12 @@ def get_comments_from_post(post_url, get_all_pages=True, get_replies=False, get_
 
     results = []
     page = 1
-    print(f"- Getting top level comments for: {post_url}")
+    print(f"- Getting comments for: {post_url}")
 
-    html = fetch_initial_page(post_url, session)
-    print("  Received HTML")
+    fetch_response = fetch_initial_page(post_url, session)
+    print(f"  Received HTML | status: {fetch_response[1]}")
 
-    blogger_object = extract_blogger_object_from_html(html)
+    blogger_object = extract_blogger_object_from_html(fetch_response[0])
     comments = get_comments_from_blogger_object(blogger_object)
 
     print("  Total comments: %s" % get_total_comment_count(blogger_object))

@@ -1,3 +1,7 @@
 test_data
 __pycache__/
 *.py[cod]
+
+src/logs
+src/other
+src/output

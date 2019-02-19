@@ -167,17 +167,17 @@ async def get_comments_from_post(post_url, session, get_all_pages=True, get_repl
 
     results = []
     page = 1
-    print(f"- Getting comments for: {post_url}")
+    logging.info(f"- Getting comments for: {post_url}")
 
     fetch_response = await fetch_initial_page(post_url, session)
-    print(f"  Received HTML | status: {fetch_response[1]}")
+    logging.info(f"  Received HTML | status: {fetch_response[1]}")
 
     blogger_object = extract_blogger_object_from_html(fetch_response[0])
     comments = get_comments_from_blogger_object(blogger_object)
 
-    print("  Total comments: %s" % get_total_comment_count(blogger_object))
-    print("  Extracting comments")
-    print("    page 1 (%s)" % len(comments))
+    logging.info("  Total comments: %s" % get_total_comment_count(blogger_object))
+    logging.info("  Extracting comments")
+    logging.info("    page 1 (%s)" % len(comments))
 
     # Add the comments from the initial html (first 20)
     await process_comments(comments, session, post_url, get_replies, get_comment_plus_ones, get_reply_plus_ones)
@@ -194,10 +194,10 @@ async def get_comments_from_post(post_url, session, get_all_pages=True, get_repl
 
             if not len(comments) or not continuation_key: break
 
-            print("    page %s (%s)" % (page, len(comments)))
+            logging.info("    page %s (%s)" % (page, len(comments)))
             await process_comments(comments, session, post_url, get_replies, get_comment_plus_ones, get_reply_plus_ones)
             results.extend(comments)
-    print("  Finished")
+    logging.info("  Finished")
     return results
 
 

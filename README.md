@@ -8,11 +8,9 @@ A worst case example of the cost of getting a single comment (single page)
 
 Replies | Comment +1ers | Reply +1ers | JSON Size (kB) | Estimated Network Requests | Elapsed Time (seconds)
 ------- | ----------- | --------- | -------------- | -------------------------- | ------------
-❌ | ❌ | ❌ | 5   | 1 | ~1.81
-❌ | ✔️ | ❌ | 31  | 2 | ~3.81
-✔️ | ❌ | ❌ | 111 | 2 | ~2.50
-✔️ | ✔️ | ❌ | 134 | 3 | ~4.42
-✔️ | ❌ | ✔️ | 137 | 65 | ~21.00
-✔️ | ✔️ | ✔️ | 160 | 66 | ~24.13
-
-\**Network requests are currently synchronous*
+❌ | ❌ | ❌ | 5   | 1 | ~1.73
+❌ | ✔️ | ❌ | 31  | 2 | ~2.13
+✔️ | ❌ | ❌ | 111 | 2 | ~2.37
+✔️ | ✔️ | ❌ | 134 | 3 | ~2.80
+✔️ | ❌ | ✔️ | 137 | 65 | ~3.10
+✔️ | ✔️ | ✔️ | 160 | 66 | ~3.10

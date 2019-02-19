@@ -1,4 +1,6 @@
-import re, json, asyncio, aiohttp
+import re, json, logging
+import asyncio, aiohttp
+
 from time import sleep, perf_counter
 
 from util import get_bracket_pairs, remove_xssi_guard, get_url_path
@@ -102,23 +104,53 @@ async def fetch_more_comments(continuation_key, post_url, session):
         return {"comments": get_comments_from_blogger_object(blogger_object), "continuation_key": extract_continuation_key(blogger_object)}
 
 async def process_comments(comments, session, post_url=None, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False):
-    try:
-        for comment in comments:
-            if get_replies and comment["reply_count"] > 0:
-                replies = list(await get_replies_from_comment_id(comment["id"], post_url, session))
-                comment["replies"] = replies
-                # get plus_ones for replies
-                # idk how to make this more python-y and avoid the nesting
+    # There's probably a way to avoid creating two loops here
+    # but I'm not experienced enough with asyncio to figure it out
+
+    reply_tasks = {}
+    plus_one_tasks = {}
+    reply_plus_one_tasks = {}
+
+    # Initial loop to start all of the tasks in parallel
+    for comment in comments:
+        if get_replies and comment["reply_count"] > 0:
+            # This probably isn't the python way of doing async, but it works fine for now
+            reply_task = asyncio.create_task(get_replies_from_comment_id(comment["id"], post_url, session))
+            reply_task.comment = comment
+            reply_tasks[comment["id"]] = reply_task
+
+        if get_comment_plus_ones and comment["plus_one_id"] and comment["plus_one_count"] > 0:
+            plus_one_task = asyncio.create_task(get_plus_ones_from_id(comment["plus_one_id"], comment["plus_one_count"], session))
+            plus_one_task.comment = comment
+            plus_one_tasks[comment["id"]] = plus_one_task
+
+    if get_replies:
+        await asyncio.gather(*list(reply_tasks.values()), return_exceptions=True)
+        # Loop to assign the replies to their respective comments
+        if get_reply_plus_ones:
+            for key, value in reply_tasks.items():
+                replies = list(value.result())
+                value.comment["replies"] = replies
                 if get_reply_plus_ones:
                     for reply in replies:
                         if reply["plus_one_id"] and reply["plus_one_count"] > 0:
-                            reply["plus_ones"] = list(await get_plus_ones_from_id(reply["plus_one_id"], reply["plus_one_count"], session))
+                            reply_plus_one_task = asyncio.create_task(get_plus_ones_from_id(reply["plus_one_id"], reply["plus_one_count"], session))
+                            reply_plus_one_task.reply = reply
+                            reply_plus_one_tasks[reply["id"]] = reply_plus_one_task
+        else:
+            for key, value in reply_tasks.items():
+                value.comment["replies"] = list(value.result())
+    
+    if get_comment_plus_ones:
+        await asyncio.gather(*list(plus_one_tasks.values()), return_exceptions=True)
 
+        for key, value in plus_one_tasks.items():
+            value.comment["plus_ones"] = list(value.result())
 
-            if get_comment_plus_ones and comment["plus_one_id"] and comment["plus_one_count"] > 0:
-                comment["plus_ones"] = list(await get_plus_ones_from_id(comment["plus_one_id"], comment["plus_one_count"], session))
-    except TypeError as e:
-        raise TypeError("Error with comment: %s" % json.dumps(comments, indent=4)) from e
+    if get_reply_plus_ones:
+        await asyncio.gather(*list(reply_plus_one_tasks.values()), return_exceptions=True)
+        for key, value in reply_plus_one_tasks.items():
+            value.reply["plus_ones"] = list(value.result())
 
 # Retrieves comments and replies
 # get_all_pages 
@@ -131,7 +163,7 @@ async def process_comments(comments, session, post_url=None, get_replies=False, 
 #   - Retrieve a list of all the authors that +1'd each comment
 #   - An additional network request is made for each comment and reply that has >1 plus_ones
 # session - To reuse an existing aiohttp.ClientSession object (performance improvement)
-async def get_comments_from_post(post_url, session, get_all_pages=False, get_replies=True, get_comment_plus_ones=False, get_reply_plus_ones=False):
+async def get_comments_from_post(post_url, session, get_all_pages=True, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False):
 
     results = []
     page = 1
@@ -180,8 +212,17 @@ async def test_urls():
 
     async with aiohttp.ClientSession() as session:
         # print(await fetch_initial_page(test_urls[0], session))
-
-        comments = await get_comments_from_post(test_urls[0], session, get_all_pages=False, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False)
+        # 
+        
+        runs = 3
+        
+        total_elapsed = 0
+        for i in range(runs):
+            t0 = perf_counter()
+            comments = await get_comments_from_post(test_urls[0], session, get_all_pages=False, get_replies=True, get_comment_plus_ones=True, get_reply_plus_ones=True)
+            t1 = perf_counter() - t0
+            total_elapsed += t1
+        print("Took %f seconds with average %f\n\n\n\n\n" % (total_elapsed, total_elapsed / runs))
         print(json.dumps(comments[0], indent=4))
 
 if __name__ == '__main__':

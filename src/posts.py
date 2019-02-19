@@ -35,11 +35,11 @@ def get_blog_posts(blog):
 if __name__ == '__main__':
 	#Sample default blog
 	#A trailing slash on the URL seems to work OK, even if it processes with a double slash
-	blog = 'https://buzz.blogger.com/'#'https://blogger.googleblog.com'#'https://mytriptoamerica.blogspot.com'
+	blog = 'https://blogger.googleblog.com/'#'https://blogger.googleblog.com'#'https://mytriptoamerica.blogspot.com'
 
 	post_urls = get_blog_posts(blog) #Retrieve the sample blog's articles
 	print(f"Found {len(post_urls)} post links")
-	print(post_urls)
+	print(json.dumps(post_urls))
 
 #TODO:
 #Report any of the above errors

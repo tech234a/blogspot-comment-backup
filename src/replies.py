@@ -2,9 +2,8 @@ import json, asyncio, aiohttp
 from util import remove_xssi_guard
 
 async def fetch_comment_replies(comment_id, post_url, session):
-    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
     data = {"f.req": f'["{comment_id}",null,null,null,null,null,null,[20,null,null,1,null,null,null,1,null,"fntn",0,9,0,["{post_url}"],null,null,0],2]'}
-    async with session.post("https://apis.google.com/wm/1/_/stream/getactivity/", data=data, headers=headers) as response:
+    async with session.post("https://apis.google.com/wm/1/_/stream/getactivity/", data=data) as response:
         return await response.text()
 
 def get_os_u_object(raw_response_text):

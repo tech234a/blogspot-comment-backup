@@ -11,6 +11,7 @@ blogger_object_pattern = re.compile(r'data:(\["os\.blogger",[\s\S]*?)}\);</scrip
 
 def extract_blogger_object_from_html(html):
     os_blogger = blogger_object_pattern.search(html)[1]
+
     parsed = json.loads(os_blogger)
 
     return parsed
@@ -85,17 +86,15 @@ def get_info_from_comment(comment, return_info_list=False):
         return results  
 
 async def fetch_initial_page(post_url, session):
-    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
     params = {"first_party_property": "BLOGGER", "query": post_url}
-    async with session.get("https://apis.google.com/u/0/_/widget/render/comments", params=params, headers=headers) as response:
+    async with session.get("https://apis.google.com/u/0/_/widget/render/comments", params=params) as response:
         text = await response.text()
         return (text, response.status)
 
 async def fetch_more_comments(continuation_key, post_url, session):
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
     data = {"f.req": f'[[null,[[null,null,null,null,2]],[1,[20,\"{continuation_key}\"],null,[[[2,[null,\"\"]]]],true],[100]],[[\"{post_url}\",null,null,null,0,null,\"{post_url}\",null,null,1,[20,null,null,1,null,null,null,1,null,\"fntn\",0,9,0,[\"{post_url}\"],null,null,0],null,null,null,null,1,null,null,null,null,0,null,null,3,1,\"ADSJ_i2qch7-NelDrYpMAgUEL3IyfvpRaOpIlNdE_bvIQ75NJOZBrBOcjySzgO6TLTwV505qclfGXYIJhMfE5caBt_gnFo0oJQMYepGtofNznk9sXjdUpWpbuvR9fVGZg5UE5s63b2jaYidM-u0YJobnkro9YS07tqwxEfgTeBOKzWrTTOVchhsesdkGf_5Bt2nIVwQX-CBt0dMjHSlQOVRDK8lDWMDDmByx31C9iLDhEhuG6dr0IdYCDriTB8orFKbx4AJztSfIqaJgpDhjauRnxyGTfIeDCF615Dhc5oQRNWv5DC3lk0Tdz76D42zH768dAYF1_pyJLZX8CdvH9V2MlBc6bvnCJdZWmHaWi1U17imK\",20,null,null,[null,null,0,0,0],1,0,null,0],\"{post_url}\",\"{post_url}\",[20,null,null,1,null,null,null,1,null,\"fntn\",0,9,0,[\"{post_url}\"],null,null,0],0,\"\"]]'}
     
-    async with session.post("https://apis.google.com/wm/1/_/sw/bs", data=data, headers=headers) as response:
+    async with session.post("https://apis.google.com/wm/1/_/sw/bs", data=data) as response:
         text = await response.text()
 
         response_string = remove_xssi_guard(text)
@@ -212,14 +211,13 @@ async def test_urls():
 
     async with aiohttp.ClientSession() as session:
         # print(await fetch_initial_page(test_urls[0], session))
-        # 
         
-        runs = 3
+        runs = 1
         
         total_elapsed = 0
         for i in range(runs):
             t0 = perf_counter()
-            comments = await get_comments_from_post(test_urls[0], session, get_all_pages=False, get_replies=True, get_comment_plus_ones=True, get_reply_plus_ones=True)
+            comments = await get_comments_from_post("https://googleblog.blogspot.com/2013/10/the-new-hp-chromebook-made-with-google.html", session, get_all_pages=True, get_replies=True, get_comment_plus_ones=True, get_reply_plus_ones=True)
             t1 = perf_counter() - t0
             total_elapsed += t1
         print("Took %f seconds with average %f\n\n\n\n\n" % (total_elapsed, total_elapsed / runs))

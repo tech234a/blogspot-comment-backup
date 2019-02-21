@@ -3,9 +3,9 @@ import asyncio, aiohttp
 
 from time import sleep, perf_counter
 
-from util import get_bracket_pairs, remove_xssi_guard, get_url_path
-from replies import get_replies_from_comment_id
-from plus_ones import get_plus_ones_from_id
+from fetch.util import remove_xssi_guard, get_url_path
+from fetch.replies import get_replies_from_comment_id
+from fetch.plus_ones import get_plus_ones_from_id
 
 blogger_object_pattern = re.compile(r'data:(\["os\.blogger",[\s\S]*?)}\);</script>')
 

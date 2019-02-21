@@ -1,6 +1,6 @@
 import json, asyncio, aiohttp
 
-from util import remove_xssi_guard
+from fetch.util import remove_xssi_guard
 
 # Gets all of the profiles who +1d a given comment
 # plus_one_id - The plus_one_id of the comment
@@ -9,7 +9,8 @@ async def fetch_comment_plus_ones(plus_one_id, amount, session):
     headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
     data = {"plusoneId": plus_one_id, "num": amount}
     async with session.post("https://apis.google.com/wm/1/_/common/getpeople/", data=data, headers=headers) as response:
-        return await response.text()
+        text = await response.text()
+        return text
 
 def get_raw_plus_one_list(raw_response_text):
     raw_response_text = remove_xssi_guard(raw_response_text)

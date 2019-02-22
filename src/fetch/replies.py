@@ -1,5 +1,5 @@
 import json, asyncio, aiohttp
-from fetch.util import remove_xssi_guard
+from util import remove_xssi_guard
 
 async def fetch_comment_replies(comment_id, post_url, session):
     data = {"f.req": f'["{comment_id}",null,null,null,null,null,null,[20,null,null,1,null,null,null,1,null,"fntn",0,9,0,["{post_url}"],null,null,0],2]'}

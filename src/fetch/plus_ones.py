@@ -1,6 +1,6 @@
 import json, asyncio, aiohttp
 
-from fetch.util import remove_xssi_guard
+from util import remove_xssi_guard
 
 # Gets all of the profiles who +1d a given comment
 # plus_one_id - The plus_one_id of the comment

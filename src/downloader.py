@@ -1,6 +1,10 @@
 import json, asyncio, aiohttp, logging
 from time import perf_counter
 
+import sys
+
+sys.path.insert(0, './fetch/')
+
 from fetch.posts import get_blog_posts
 from fetch.comments import get_comments_from_post
 from fetch.util import get_url_path

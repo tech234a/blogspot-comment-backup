@@ -3,9 +3,9 @@ import asyncio, aiohttp
 
 from time import sleep, perf_counter
 
-from fetch.util import remove_xssi_guard, get_url_path
-from fetch.replies import get_replies_from_comment_id
-from fetch.plus_ones import get_plus_ones_from_id
+from util import remove_xssi_guard, get_url_path
+from replies import get_replies_from_comment_id
+from plus_ones import get_plus_ones_from_id
 
 blogger_object_pattern = re.compile(r'data:(\["os\.blogger",[\s\S]*?)}\);</script>')
 
@@ -217,7 +217,7 @@ async def test_urls():
         total_elapsed = 0
         for i in range(runs):
             t0 = perf_counter()
-            comments = await get_comments_from_post("https://googleblog.blogspot.com/2013/10/the-new-hp-chromebook-made-with-google.html", session, get_all_pages=True, get_replies=True, get_comment_plus_ones=True, get_reply_plus_ones=True)
+            comments = await get_comments_from_post(test_urls[0], session, get_all_pages=False, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False)
             t1 = perf_counter() - t0
             total_elapsed += t1
         print("Took %f seconds with average %f\n\n\n\n\n" % (total_elapsed, total_elapsed / runs))

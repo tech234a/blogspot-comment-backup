@@ -1,3 +1,4 @@
+![logo](logo.png)
 # blogspot-comment-backup
 A project to archive comments from [blogspot](https://www.blogger.com/) blogs
 

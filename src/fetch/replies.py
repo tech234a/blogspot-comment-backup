@@ -26,7 +26,7 @@ def get_info_from_reply(reply):
     results = {}
 
     results["id"] = reply[4].split("#")[1] or None
-    results["date_posted"] = reply[3] or None
+    results["date_posted"] = round(reply[3] / 1000) if reply[3] else None
 
     user_object = reply[25]
     results["user_name"] = user_object[0] or None

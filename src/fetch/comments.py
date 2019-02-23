@@ -54,7 +54,7 @@ def get_info_from_comment(comment, return_info_list=False):
     
     results["reply_count"] = info_list[93] or 0
 
-    results["date_posted"] = info_list[5] or None
+    results["date_posted"] = round(info_list[5] / 1000) if info_list[5] else None
     results["domain"] = info_list[2] or None
 
     user_object = info_list[136]

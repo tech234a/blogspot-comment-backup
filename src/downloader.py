@@ -128,7 +128,7 @@ async def downloader(name, batch_file, queue):
 	print(f"{name} DONE | Posts Downloaded: {worker_posts_downloaded} | Posts Requeued: {worker_posts_requeued}")
 	print_downloader_status(name, downloaders_paused, downloaders_finished)
 
-async def download_blog(__blog_posts, batch_file, __starting_post = 0, __downloader_count = 10):
+async def download_blog(__blog_posts, __batch_file, __exclude_limit, __starting_post=0, __downloader_count=10):
 	global starting_post
 	global posts_finished
 	global time_start
@@ -142,22 +142,26 @@ async def download_blog(__blog_posts, batch_file, __starting_post = 0, __downloa
 	starting_post = __starting_post
 	downloader_count = __downloader_count
 
-	blog_posts = __blog_posts
 	time_start = perf_counter()
+
+	blog_posts = __blog_posts
+
 	posts_finished = 0
 	downloaders_finished = 0
 	downloaders_should_pause = False
 	downloaders_paused = 0
 	downloader_tasks = []
 
-	session = aiohttp.ClientSession(headers=session_headers, timeout=session_timeout)
+	if not session:
+		session = aiohttp.ClientSession(headers=session_headers, timeout=session_timeout)
+
 	queue = []
 	for post in blog_posts[starting_post:]:
 		queue.append(post)
 
 	for i in range(downloader_count):
 		prefix = "0" if i < 10 else ""
-		downloader_task = asyncio.create_task(downloader(f"downloader-{prefix}{i}", batch_file, queue))
+		downloader_task = asyncio.create_task(downloader(f"downloader-{prefix}{i}", __batch_file, queue))
 		downloader_tasks.append(downloader_task)
 
 	t0 = perf_counter()
@@ -165,8 +169,6 @@ async def download_blog(__blog_posts, batch_file, __starting_post = 0, __downloa
 	await asyncio.gather(*downloader_tasks)
 	duration = perf_counter() - t0
 	print("Saved %s posts in %s seconds" % (posts_finished, format(duration, '.2f')))
-
-	await session.close()
 
 
 async def main():
@@ -179,17 +181,33 @@ async def main():
 	# blog_posts = get_blog_posts(blog)
 
 	# Use a file of post urls for faster debugging
-	# with open("../test_data/googleblog_posts.json", "r") as file:
-	with open("../test_data/blogger_googleblog.json", "r") as file:
+	with open("../test_data/googleblog_posts.json", "r") as file:
+		with open("../test_data/blogger_googleblog.json", "r") as file2:
 
-		batch_file = BatchFile("../output/", 120312)
+			batch_file = BatchFile("../output/", 120312)
+			
+			blog_posts = json.loads(file2.read())
+			blog_posts_2 = json.loads(file.read())
 
-		blog_posts = json.loads(file.read())
-		batch_file.start_blog(1, "googleblog", "blogger.googleblog.com")
-		await download_blog(blog_posts, batch_file, __starting_post=500)
-		await session.close()
-		batch_file.end_blog(True)
-		batch_file.end_batch()
+			batch_file.start_blog(1, "googleblog", "googleblog.blogspot.com")
+			await download_blog(blog_posts, batch_file, __starting_post=500)
+			batch_file.end_blog(False)
+
+			batch_file.start_blog(1, "clean", "clean.blogspot.com")
+			await download_blog(blog_posts_2, batch_file, __starting_post=3300)
+			batch_file.end_blog(True)
+
+			batch_file.end_batch()
+
+			# batch_file_2 = BatchFile("../output/", 384753)
+			# blog_posts_2 = json.loads(file.read())
+
+			# batch_file_2.start_blog(1, "buzz", "buzz.blogspot.com")
+			# await download_blog(blog_posts_2, batch_file_2, __starting_post=3300)
+			# batch_file_2.end_blog(True)
+			# batch_file_2.end_batch()
+
+			await session.close()
 
 
 

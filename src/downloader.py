@@ -189,11 +189,11 @@ async def main():
 			blog_posts = json.loads(file2.read())
 			blog_posts_2 = json.loads(file.read())
 
-			batch_file.start_blog(1, "googleblog", "googleblog.blogspot.com", True)
+			batch_file.start_blog(1, "googleblog", "googleblog.blogspot.com", "a", True)
 			await download_blog(blog_posts, batch_file, __exclude_limit=450, __starting_post=500)
 			batch_file.end_blog()
 
-			batch_file.start_blog(1, "clean", "clean.blogspot.com", False)
+			batch_file.start_blog(1, "clean", "clean.blogspot.com", "a", False)
 			await download_blog(blog_posts_2, batch_file, __exclude_limit=450, __starting_post=3300)
 			batch_file.end_blog()
 
@@ -202,7 +202,7 @@ async def main():
 			# batch_file_2 = BatchFile("../output/", 384753)
 			# blog_posts_2 = json.loads(file.read())
 
-			# batch_file_2.start_blog(1, "buzz", "buzz.blogspot.com", True)
+			# batch_file_2.start_blog(1, "buzz", "buzz.blogspot.com", "a", True)
 			# await download_blog(blog_posts_2, batch_file_2, __starting_post=3300)
 			# batch_file_2.end_blog()
 			# batch_file_2.end_batch()

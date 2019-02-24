@@ -7,7 +7,9 @@ class BatchError(Exception):
 class BatchFile:
 	def __init__(self, directory, batch_id):
 		self.batch_id = batch_id
-		self.batch_file = gzip.open(f"{directory}{self.batch_id}.json.gz", "w")
+		self.directory = directory
+		self.file_name = f"{self.batch_id}.json.gz"
+		self.batch_file = gzip.open(f"{self.directory}{self.file_name}", "w")
 		self.batch_file.write(b"[")
 
 		self.closed = False
@@ -18,7 +20,7 @@ class BatchFile:
 		self.batch_file.write(b"\n]")
 		self.batch_file.close()
 
-	def start_blog(self, version, blog_name, domain):
+	def start_blog(self, version, blog_name, domain, first_blog=False):
 		if not self.blog_started:
 			self.blog_started = True
 			blog_header_obj = {
@@ -28,28 +30,26 @@ class BatchFile:
 				"domain": domain,
 				"posts": []
 			}
-
-			blog_header = "\n    " + json.dumps(blog_header_obj)[:-2] + "\n"
+			comma = "," if not first_blog else ""
+			blog_header = f"{comma}\n    " + json.dumps(blog_header_obj)[:-2] + "\n"
 			self.batch_file.write(blog_header.encode("utf-8"))
 		else:
 			raise BatchError("Cannot start blog: there is already a blog started")
 
-	def end_blog(self, final_blog):
+	def end_blog(self):
 		if self.blog_started:
 			end_text = b"\n    ]}"
-			if not final_blog:
-				end_text += b","
 			self.batch_file.write(end_text)
 			self.blog_started = False
 		else:
 			raise BatchError("Cannot end blog: there is no blog started")
 
-	def add_blog_post(self, url, json_post, final_post):
+	def add_blog_post(self, url, json_post, first_post):
 		if self.blog_started:
 			post_text = ("        " + json.dumps({"post_url": url, "comments": json_post})).encode("utf-8")
-			if not final_post:
-				post_text += b",\n"
-			self.batch_file.write(post_text)
+
+			pre_text = b",\n" if not first_post else b""
+			self.batch_file.write(pre_text + post_text)
 		else:
 			raise BatchError("Cannot add blog post: there is no blog started")
 
@@ -61,18 +61,18 @@ if __name__ == '__main__':
 		{"id":"z13dint5bznehbjj104cerabpr2pc1jg5kk0k","type":1001,"reply_count":0,"date_posted":1508225427212,"domain":"blogger.googleblog.com","user_name":"JAMIL HASHIM","user_id":"108946740664022095173","user_avatar":"https://lh4.googleusercontent.com/-5HfeqqrBU3s/AAAAAAAAAAI/AAAAAAAAEkA/pHt3oIHLxK4/photo.jpg","user_profile":"./108946740664022095173","plus_one_id":"4/jcsnat3dhtu3esnuhtmqksnehcsn0h33gpta2snkictb0stlhdnneuvfa1pk/","plus_one_count":0,"text":[[[0,"NICE SHARING..."]]],"language_code":"en","language_display":"English","share_string":"s:updates:fountain:blogger.googleblog.com"}
 	]
 
-	bf = BatchFile(11273648)
+	bf = BatchFile("../output/", 11273648)
 
-	bf.start_blog(1, "googleblog", "https://blogger.googleblog.com")
+	bf.start_blog(1, "googleblog", "https://blogger.googleblog.com", True)
 
-	bf.add_blog_post(json.dumps(test_posts[0]), False)
-	bf.add_blog_post(json.dumps(test_posts[1]), True)
-	bf.end_blog(final_blog=False)
+	bf.add_blog_post("test123", json.dumps(test_posts[0]), False)
+	bf.add_blog_post("test123", json.dumps(test_posts[1]), True)
+	bf.end_blog()
 
-	bf.start_blog(1, "afrmtbl", "https://afrmtbl.blogspot.com")
+	bf.start_blog(1, "afrmtbl", "https://afrmtbl.blogspot.com", False)
 
-	bf.add_blog_post(json.dumps(test_posts[0]), False)
-	bf.add_blog_post(json.dumps(test_posts[1]), True)
+	bf.add_blog_post("test 1255553", json.dumps(test_posts[0]), False)
+	bf.add_blog_post("test 1255553", json.dumps(test_posts[1]), True)
 
-	bf.end_blog(final_blog=True)
+	bf.end_blog()
 	bf.end_batch()

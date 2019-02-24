@@ -15,43 +15,58 @@ class BatchFile:
 		self.closed = False
 
 		self.blog_started = False
+		self.blog_started_status = None
 
 	def end_batch(self):
 		self.batch_file.write(b"\n]")
 		self.batch_file.close()
 
-	def start_blog(self, version, blog_name, domain, first_blog=False):
+	# status: a for available, p for private, d for deleted, e for excluded
+	def start_blog(self, version, blog_name, domain, status, first_blog):
 		if not self.blog_started:
 			self.blog_started = True
+			self.blog_started_status = status
 			blog_header_obj = {
 				"version": 1,
 				"fetch_date": round(time.time()),
 				"blog_name": blog_name,
 				"domain": domain,
-				"posts": []
+				"status": status
 			}
+			blog_header = ""
 			comma = "," if not first_blog else ""
-			blog_header = f"{comma}\n    " + json.dumps(blog_header_obj)[:-2] + "\n"
-			self.batch_file.write(blog_header.encode("utf-8"))
+			if status == "a":
+				blog_header_obj["posts"] = []
+				blog_header = f"{comma}\n    " + json.dumps(blog_header_obj)[:-2] + "\n"
+			else:
+				blog_header = f"{comma}\n    " + json.dumps(blog_header_obj)
+
+			self.batch_file.write((blog_header).encode("utf-8"))
 		else:
 			raise BatchError("Cannot start blog: there is already a blog started")
 
 	def end_blog(self):
 		if self.blog_started:
-			end_text = b"\n    ]}"
-			self.batch_file.write(end_text)
+			if self.blog_started_status == "a":
+				end_text = b"\n    ]}"
+				self.batch_file.write(end_text)
 			self.blog_started = False
+			self.blog_started_status = None
 		else:
 			raise BatchError("Cannot end blog: there is no blog started")
 
 	def add_blog_post(self, url, json_post, first_post):
-		if self.blog_started:
+		if self.blog_started and self.blog_started_status == "a":
 			post_text = ("        " + json.dumps({"post_url": url, "comments": json_post})).encode("utf-8")
 
 			pre_text = b",\n" if not first_post else b""
 			self.batch_file.write(pre_text + post_text)
-		else:
+		elif not self.blog_started:
 			raise BatchError("Cannot add blog post: there is no blog started")
+		elif self.blog_started_status != "a":
+			raise BatchError("Cannot add blog post: tried to add posts to a blog that's status isn't available")
+		else:
+			raise BatchError("Cannot add blog post")
 
 
 if __name__ == '__main__':
@@ -63,16 +78,19 @@ if __name__ == '__main__':
 
 	bf = BatchFile("../output/", 11273648)
 
-	bf.start_blog(1, "googleblog", "https://blogger.googleblog.com", True)
+	bf.start_blog(1, "googleblog", "https://blogger.googleblog.com", "a", True)
 
-	bf.add_blog_post("test123", json.dumps(test_posts[0]), False)
-	bf.add_blog_post("test123", json.dumps(test_posts[1]), True)
+	bf.add_blog_post("test123", test_posts[0], True)
+	bf.add_blog_post("test123", test_posts[1], False)
 	bf.end_blog()
 
-	bf.start_blog(1, "afrmtbl", "https://afrmtbl.blogspot.com", False)
-
-	bf.add_blog_post("test 1255553", json.dumps(test_posts[0]), False)
-	bf.add_blog_post("test 1255553", json.dumps(test_posts[1]), True)
-
+	bf.start_blog(1, "afrmtbl", "https://afrmtbl.blogspot.com", "d", False)
 	bf.end_blog()
+
+	bf.start_blog(1, "afrmtbl", "https://afrmtbl.blogspot.com", "p", False)
+	bf.end_blog()
+
+	bf.start_blog(1, "afrmtbl", "https://afrmtbl.blogspot.com", "e", False)
+	bf.end_blog()
+
 	bf.end_batch()

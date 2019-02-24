@@ -54,8 +54,9 @@ async def test():
     async with aiohttp.ClientSession() as session:
         # Sample default blog
         # A trailing slash on the URL seems to work OK, even if it processes with a double slash
-        blog = 'https://blogger.googleblog.com/'#'https://blogger.googleblog.com'#'https://mytriptoamerica.blogspot.com'
+        # blog = 'https://blogger.googleblog.com/'#'https://blogger.googleblog.com'#'https://mytriptoamerica.blogspot.com'
         # blog = "https://buzz.blogspot.com/"
+        blog = "https://11thhourindustries.blogspot.com"
 
         post_urls = await get_blog_posts(blog, 0, session) #Retrieve the sample blog's articles
         print(f"Found {len(post_urls)} post links")

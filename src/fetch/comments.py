@@ -74,7 +74,7 @@ def get_info_from_comment(comment, return_info_list=False):
     results["text"] = info_list[137] if info_list[137] else None
 
     language_object = info_list[141]
-    if len(language_object) == 3: 
+    if language_object and len(language_object) == 3: 
         results["language_code"] = language_object[0] or None
         results["language_display"] = language_object[2] or None
 
@@ -118,7 +118,7 @@ async def process_comments(comments, session, post_url=None, get_replies=False, 
             reply_task.comment = comment
             reply_tasks[comment["id"]] = reply_task
 
-        if get_comment_plus_ones and comment["plus_one_id"] and comment["plus_one_count"] > 0:
+        if get_comment_plus_ones and "plus_one_id" in comment and "plus_one_count" in comment and comment["plus_one_count"] > 0:
             plus_one_task = asyncio.create_task(get_plus_ones_from_id(comment["plus_one_id"], comment["plus_one_count"], session))
             plus_one_task.comment = comment
             plus_one_tasks[comment["id"]] = plus_one_task
@@ -206,7 +206,7 @@ async def test_urls():
         # "http://raazwebcity.blogspot.com/2018/09/best-wordpress-seo-tips.html",
         # "https://blogger-developers.googleblog.com/2011/11/introducing-custom-mobile-templates.html",
         # "https://blogger-developers.googleblog.com/2013/04/improvements-to-blogger-template-html.html",
-        "https://blogger.googleblog.com/2019/01/an-update-on-google-and-blogger.html"
+        "https://0-1-2-3-sp1.blogspot.com/2014/03/pirackie-podchody.html"
     ]
 
     async with aiohttp.ClientSession() as session:

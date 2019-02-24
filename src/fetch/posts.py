@@ -3,6 +3,10 @@ import asyncio, aiohttp, json
 class MarkExclusion(Exception):
     pass
 
+class NoEntries(Exception):
+    pass
+
+
 async def get_blog_posts(blog, exclusion_limit, session):
     json_loads = json.loads
     # Create a new request session so we can reuse for following requests
@@ -33,11 +37,17 @@ async def get_blog_posts(blog, exclusion_limit, session):
         else: # The blog is accessible, proceed in retreiving links
             text = await request_info.text()
             feed_json = json_loads(text)
-            post_urls_extend([feed_json['feed']['entry'][i]['link'][-1]['href'] for i in range(0, len(feed_json['feed']['entry']))])
-            if len(feed_json['feed']['entry']) != 150:
-                complete = True
-            else:
-                i += 1
+            if "feed" in feed_json and "entry" in feed_json["feed"]:
+                post_urls_extend([feed_json['feed']['entry'][i]['link'][-1]['href'] for i in range(0, len(feed_json['feed']['entry']))])
+                if len(feed_json['feed']['entry']) != 150:
+                    complete = True
+                else:
+                    i += 1
+            elif i == 0:
+                raise NoEntries
+            elif i > 0:
+                break
+
     return post_urls # Return the complete list of articles
 
 async def test():

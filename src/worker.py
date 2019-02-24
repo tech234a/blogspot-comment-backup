@@ -28,14 +28,14 @@ WORKER_VERSION = 1
 WORKER_BATCH_SIZE = 1000
 
 # Stop trying to connect to master after 18 hours
-# MASTER_SLEEP_TOTAL = (60 * 60) * 18
-MASTER_SLEEP_TOTAL = 10
+MASTER_SLEEP_TOTAL = (60 * 60) * 18
+# MASTER_SLEEP_TOTAL = 10
 # Multiply the sleep amount each retry
-MASTER_SLEEP_INCREMENT = 5
-# MASTER_SLEEP_INCREMENT = 30
+# MASTER_SLEEP_INCREMENT = 5
+MASTER_SLEEP_INCREMENT = 30
 # Stop multiplying after 180 seconds
-MASTER_SLEEP_MAXIMUM = 10
-# MASTER_SLEEP_MAXIMUM = 180
+# MASTER_SLEEP_MAXIMUM = 10
+MASTER_SLEEP_MAXIMUM = 180
 
 async def get_worker_id(session):
 
@@ -160,33 +160,44 @@ async def download_batch(worker_id, batch_id, batch_type, batch_content, random_
             if blog_posts == "nf":
                 print(f"Marking as deleted: batch_id: {batch_id} | blog_name: {blog_name}")
                 await submit_deleted(worker_id, batch_id, random_key, blog_name, session)
+                blog_domain = f"{blog_name}.blogspot.com"
+                batch_file.start_blog(WORKER_VERSION, blog_name, blog_domain, "d", first_blog)
+                batch_file.end_blog()
             # The blog is private
             elif blog_posts == "pr":
                 print(f"Marking as private: batch_id: {batch_id} | blog_name: {blog_name}")
                 await submit_private(worker_id, batch_id, random_key, blog_name, session)
+                blog_domain = f"{blog_name}.blogspot.com"
+                batch_file.start_blog(WORKER_VERSION, blog_name, blog_domain, "p", first_blog)
+                batch_file.end_blog()
             # Other errors
             elif blog_posts == "oe":
                 print(f"Marking as exclusion: batch_id: {batch_id} | blog_name: {blog_name}")
                 await submit_exclusion(worker_id, batch_id, random_key, blog_name, session)
+                blog_domain = f"{blog_name}.blogspot.com"
+                batch_file.start_blog(WORKER_VERSION, blog_name, blog_domain, "e", first_blog)
+                batch_file.end_blog()
             else:
                 blog_tld = tldextract.extract(blog_posts[0])
                 blog_domain = f"{blog_tld.subdomain}.{blog_tld.domain}.{blog_tld.suffix}"
 
-                batch_file.start_blog(WORKER_VERSION, blog_name, blog_domain, first_blog)
+                batch_file.start_blog(WORKER_VERSION, blog_name, blog_domain, "a", first_blog)
                 await downloader.download_blog(blog_posts, batch_file, exclusion_limit)
                 batch_file.end_blog()
 
         except MarkExclusion:
             print(f"Marking as exclusion: batch_id: {batch_id} | blog_name: {blog_name}")
             await submit_exclusion(worker_id, batch_id, random_key, blog_name, session)
+            batch_file.start_blog(WORKER_VERSION, blog_name, blog_domain, "e", first_blog)
+            batch_file.end_blog()
         except NoEntries:
             print(f"Blog has no posts: batch_id: {batch_id} | blog_name: {blog_name}")
-            batch_file.start_blog(WORKER_VERSION, blog_name, f"{blog_name}.blogspot.com", first_blog)
+            batch_file.start_blog(WORKER_VERSION, blog_name, f"{blog_name}.blogspot.com", "a", first_blog)
             batch_file.end_blog()
 
 
     if batch_type == "list":
-        # blog_count = 5
+        batch_size = 5
         print("Downloading domain list")
         for i in range(batch_size):
             blog_name = domains.readline().replace("\n", "")
@@ -256,12 +267,11 @@ async def main():
 
     with open("../domains.txt", "r") as domains:
         async with aiohttp.ClientSession() as session:
+            print("Requesting worker ID")
             worker_id = await get_worker_id(session)
             # worker_id = "27747438-9825-51e1-9578-8807297944e6"
             if worker_id:
-
                 print(f"Received worker ID: {worker_id}")
-
                 while True:
                     print("Requesting new batch...")
                     batch = await get_batch(worker_id, session)

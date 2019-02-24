@@ -2,6 +2,16 @@
 # blogspot-comment-backup
 A project to archive comments from [blogspot](https://www.blogger.com/) blogs
 
+### Running this worker:
+You can run this worker by running `python3 src/worker.py` from the root directory of this project. Python 3.7.2 is recommended and the `aiohttp` module is required. (You can install `aiohttp` by running `pip install aiohttp`.)
+
+This worker also runs on Heroku. To deploy to Heroku, follow these steps:
+- Fork this repo
+- Install the [pull](https://github.com/apps/pull) app to your fork for automatic worker updates as needed
+- [Create a new app](https://dashboard.heroku.com/new-app) on Heroku
+- Go to the *Deploy* tab on your Heroku app and link your GitHub repo fork. Enable automatic deploys.
+- Go to the *Resources* tab on your Heroku app and ensure the *worker* dyno is enabled.
+
 ### Resource Cost
 A worst case example of the cost of getting a single comment (single page)
 

@@ -55,8 +55,8 @@ async def downloader(name, batch_file, queue):
 		try:
 			comments = await get_comments_from_post(url, session, get_all_pages=True, get_replies=True, get_comment_plus_ones=True, get_reply_plus_ones=True)
 
-			final_post = (posts_finished == (len(blog_posts) - starting_post) - 1)
-			batch_file.add_blog_post(url, comments, final_post)
+			first_post = posts_finished == 0
+			batch_file.add_blog_post(url, comments, first_post)
 
 			# include a random string to prevent file name collisions
 			# random_chars = "".join(random.choices(chars, k=7))
@@ -189,22 +189,22 @@ async def main():
 			blog_posts = json.loads(file2.read())
 			blog_posts_2 = json.loads(file.read())
 
-			batch_file.start_blog(1, "googleblog", "googleblog.blogspot.com")
-			await download_blog(blog_posts, batch_file, __starting_post=500)
-			batch_file.end_blog(False)
+			batch_file.start_blog(1, "googleblog", "googleblog.blogspot.com", True)
+			await download_blog(blog_posts, batch_file, __exclude_limit=450, __starting_post=500)
+			batch_file.end_blog()
 
-			batch_file.start_blog(1, "clean", "clean.blogspot.com")
-			await download_blog(blog_posts_2, batch_file, __starting_post=3300)
-			batch_file.end_blog(True)
+			batch_file.start_blog(1, "clean", "clean.blogspot.com", False)
+			await download_blog(blog_posts_2, batch_file, __exclude_limit=450, __starting_post=3300)
+			batch_file.end_blog()
 
 			batch_file.end_batch()
 
 			# batch_file_2 = BatchFile("../output/", 384753)
 			# blog_posts_2 = json.loads(file.read())
 
-			# batch_file_2.start_blog(1, "buzz", "buzz.blogspot.com")
+			# batch_file_2.start_blog(1, "buzz", "buzz.blogspot.com", True)
 			# await download_blog(blog_posts_2, batch_file_2, __starting_post=3300)
-			# batch_file_2.end_blog(True)
+			# batch_file_2.end_blog()
 			# batch_file_2.end_batch()
 
 			await session.close()

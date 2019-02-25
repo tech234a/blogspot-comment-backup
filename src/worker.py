@@ -334,6 +334,10 @@ async def download_domains():
 
 if __name__ == '__main__':
 
+    # create the output folder for the gzipped batches
+    if not os.path.isdir("../output"):
+        os.makedirs("../output")
+
     # download the domains list
     if not os.path.exists("../domains.txt"):
         print("Downloading domains list..")

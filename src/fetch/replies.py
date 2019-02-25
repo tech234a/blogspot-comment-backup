@@ -13,7 +13,10 @@ def get_os_u_object(raw_response_text):
     return obj[0][1]
 
 def get_raw_reply_list(json_object):
-    return json_object[7]
+    if json_object and len(json_object) >= 8:
+        return json_object[7]
+    else:
+        return []
 
 def get_replies_from_raw_response(raw_response_text):
     os_u_object = get_os_u_object(raw_response_text)

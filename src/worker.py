@@ -17,6 +17,7 @@ GET_BATCH_ENDPOINT = f"{MASTER_SERVER}/worker/getBatch"
 SUBMIT_EXCLUSION_BLOG_ENDPOINT = f"{MASTER_SERVER}/worker/submitExclusion"
 SUBMIT_DELETED_BLOG_ENDPOINT = f"{MASTER_SERVER}/worker/submitDeleted"
 SUBMIT_PRIVATE_BLOG_ENDPOINT = f"{MASTER_SERVER}/worker/submitPrivate"
+SUBMIT_CUSTOM_DOMAIN_ENDPOINT = f"{MASTER_SERVER}/worker/submitDomain"
 
 UPDATE_BATCH_ENDPOINT = f"{MASTER_SERVER}/worker/updateStatus"
 
@@ -83,7 +84,7 @@ async def update_batch_status(worker_id, batch_id, random_key, status, session):
         return True
 
 
-async def submit_batch_exception(exception_type, endpoint, worker_id, batch_id, random_key, blog_name, session):
+async def submit_batch_exception(exception_type, endpoint, worker_id, batch_id, random_key, blog_name, session, domain=None):
 
     variables_string = f"worker_id: {worker_id} batch_id: {batch_id} random_key: {random_key} blog_name: {blog_name}"
 
@@ -95,7 +96,13 @@ async def submit_batch_exception(exception_type, endpoint, worker_id, batch_id, 
         "batchID": batch_id, 
         "randomKey": random_key
     }
-    params[exception_type] = blog_name
+
+    if exception_type == "domain":
+        params["domain"] = domain
+        params["blog"] = blog_name
+    else:
+        params[exception_type] = blog_name
+
     response = await retry_request_on_fail(session.get, fail_func, True, False, endpoint, params=params)
 
     if response and response.status == 200:
@@ -103,6 +110,9 @@ async def submit_batch_exception(exception_type, endpoint, worker_id, batch_id, 
         success = text == "Success"
         if success:
             print(f"Submitted batch for {exception_type}\n{variables_string}")
+            return True
+        elif text == "Dupe":
+            print(f"Aborting submitting as {exception_type}, duplication detected\n{variables_string}")
             return True
         else:
             print(f"Failed to submit {exception_type}\n{variables_string}")
@@ -118,6 +128,10 @@ async def submit_private(worker_id, batch_id, random_key, blog_name, session):
 
 async def submit_deleted(worker_id, batch_id, random_key, blog_name, session):
     success = await submit_batch_exception("deleted", SUBMIT_DELETED_BLOG_ENDPOINT, worker_id, batch_id, random_key, blog_name, session)
+    return success
+
+async def submit_custom_domain(worker_id, batch_id, random_key, blog_name, domain, session):
+    success = await submit_batch_exception("domain", SUBMIT_CUSTOM_DOMAIN_ENDPOINT, worker_id, batch_id, random_key, blog_name, session, domain=domain)
     return success
 
 async def upload_batch(worker_id, batch_id, random_key, version, file_path, file_name, session):
@@ -180,7 +194,13 @@ async def download_batch(worker_id, batch_id, batch_type, batch_content, random_
                 batch_file.end_blog()
             else:
                 blog_tld = tldextract.extract(blog_posts[0])
-                blog_domain = f"{blog_tld.subdomain}.{blog_tld.domain}.{blog_tld.suffix}"
+                blog_domain = f"{blog_tld.domain}.{blog_tld.suffix}"
+                if blog_tld.subdomain:
+                    blog_domain = f"{blog_tld.subdomain}.{blog_domain}"
+
+                if blog_domain != f"{blog_name}.blogspot.com":
+                    print(f"Marking as custom domain: batch_id: {batch_id} | blog_name: {blog_name} | blog_domain: {blog_domain}")
+                    await submit_custom_domain(worker_id, batch_id, random_key, blog_name, blog_domain, session)
 
                 batch_file.start_blog(WORKER_VERSION, blog_name, blog_domain, "a", first_blog)
                 await downloader.download_blog(blog_posts, batch_file, exclusion_limit)
@@ -240,9 +260,18 @@ async def retry_request_on_fail(func, fail_func, check_text, check_batch_fail=Fa
             response = await func(*args, **kwargs)
             if check_batch_fail:
                 text = await response.text()
-                obj = json.loads(text)
-                if "batchID" in obj and obj["batchID"] != "Fail":
-                    return response
+                if text and text != "Fail":
+                    obj = json.loads(text)
+                    if "batchID" in obj and obj["batchID"] != "Fail":
+                        return response
+                    else:
+                        fail_func(response.status)
+                        print(f"Retrying request | sleep_amount: {sleep_amount} total_slept: {total_slept}")
+                        await asyncio.sleep(sleep_amount)
+                        total_slept += sleep_amount
+                        if sleep_amount < MASTER_SLEEP_MAXIMUM:
+                            sleep_amount += MASTER_SLEEP_INCREMENT
+
                 else:
                     fail_func(response.status)
                     print(f"Retrying request | sleep_amount: {sleep_amount} total_slept: {total_slept}")
@@ -252,8 +281,8 @@ async def retry_request_on_fail(func, fail_func, check_text, check_batch_fail=Fa
                         sleep_amount += MASTER_SLEEP_INCREMENT
             elif check_text:
                 text = await(response.text())
-                print(text)
-                if text != "Fail" and response.status == 200:
+                print(f"Server response: {text}")
+                if text != "Fail" or text == "Dupe" and response.status == 200:
                     # print("Success!")
                     return response
                 else:
@@ -286,7 +315,6 @@ async def retry_request_on_fail(func, fail_func, check_text, check_batch_fail=Fa
     print(f"Request retry reached max ({MASTER_SLEEP_TOTAL} seconds)")
     sys.exit(1)
     # return False
-
 
 async def main():
 

@@ -124,7 +124,7 @@ async def process_comments(comments, session, post_url=None, get_replies=False, 
             plus_one_tasks[comment["id"]] = plus_one_task
 
     if get_replies:
-        await asyncio.gather(*list(reply_tasks.values()), return_exceptions=True)
+        await asyncio.gather(*list(reply_tasks.values()))
         # Loop to assign the replies to their respective comments
         if get_reply_plus_ones:
             for key, value in reply_tasks.items():
@@ -141,13 +141,13 @@ async def process_comments(comments, session, post_url=None, get_replies=False, 
                 value.comment["replies"] = list(value.result())
     
     if get_comment_plus_ones:
-        await asyncio.gather(*list(plus_one_tasks.values()), return_exceptions=True)
+        await asyncio.gather(*list(plus_one_tasks.values()))
 
         for key, value in plus_one_tasks.items():
             value.comment["plus_ones"] = list(value.result())
 
     if get_reply_plus_ones:
-        await asyncio.gather(*list(reply_plus_one_tasks.values()), return_exceptions=True)
+        await asyncio.gather(*list(reply_plus_one_tasks.values()))
         for key, value in reply_plus_one_tasks.items():
             value.reply["plus_ones"] = list(value.result())
 
@@ -206,7 +206,9 @@ async def test_urls():
         # "http://raazwebcity.blogspot.com/2018/09/best-wordpress-seo-tips.html",
         # "https://blogger-developers.googleblog.com/2011/11/introducing-custom-mobile-templates.html",
         # "https://blogger-developers.googleblog.com/2013/04/improvements-to-blogger-template-html.html",
-        "https://0-1-2-3-sp1.blogspot.com/2014/03/pirackie-podchody.html"
+        # "https://0-1-2-3-sp1.blogspot.com/2014/03/pirackie-podchody.html",
+        # "https://0879181778.blogspot.com/2016/07/20.html",
+        "https://0879181778.blogspot.com/2013/11/20.html"
     ]
 
     async with aiohttp.ClientSession() as session:
@@ -220,8 +222,8 @@ async def test_urls():
             comments = await get_comments_from_post(test_urls[0], session, get_all_pages=False, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False)
             t1 = perf_counter() - t0
             total_elapsed += t1
-        print("Took %f seconds with average %f\n\n\n\n\n" % (total_elapsed, total_elapsed / runs))
-        print(json.dumps(comments[0], indent=4))
+        print("Took %f seconds with average %f" % (total_elapsed, total_elapsed / runs))
+        print(comments)
 
 if __name__ == '__main__':
     asyncio.run(test_urls())

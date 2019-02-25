@@ -42,7 +42,7 @@ async def get_worker_id(session):
     def fail_func(response_status):
         print(f"[get_worker_id] The server response was unsuccessful ({response_status}), unable to get a worker ID")
 
-    response = await retry_request_on_fail(session.get, fail_func, True, GET_ID_ENDPOINT)
+    response = await retry_request_on_fail(session.get, fail_func, True, False, GET_ID_ENDPOINT)
     if response and response.status == 200:
         text = await response.text()
         return text
@@ -53,7 +53,7 @@ async def get_batch(worker_id, session):
         print(f"[get_batch] The server response was unsuccessful ({response_status}), unable to get a batch")
 
     params = {"id": worker_id}
-    response = await retry_request_on_fail(session.get, fail_func, True, GET_BATCH_ENDPOINT, params=params)
+    response = await retry_request_on_fail(session.get, fail_func, True, True, GET_BATCH_ENDPOINT, params=params)
     if response and response.status == 200:
         text = await response.text()
         obj = json.loads(text)
@@ -76,7 +76,7 @@ async def update_batch_status(worker_id, batch_id, random_key, status, session):
         "randomKey": random_key,
         "status": status
     }
-    response = await retry_request_on_fail(session.get, fail_func, True, UPDATE_BATCH_ENDPOINT, params=params)
+    response = await retry_request_on_fail(session.get, fail_func, True, False, UPDATE_BATCH_ENDPOINT, params=params)
     if response and response.status == 200:
         print(f"Successfully updated batch status: worker_id: {worker_id} | batch_id: {batch_id}")
         return True
@@ -95,7 +95,7 @@ async def submit_batch_exception(exception_type, endpoint, worker_id, batch_id, 
         "randomKey": random_key
     }
     params[exception_type] = blog_name
-    response = await retry_request_on_fail(session.get, fail_func, True, endpoint, params=params)
+    response = await retry_request_on_fail(session.get, fail_func, True, False, endpoint, params=params)
 
     if response and response.status == 200:
         text = await response.text()
@@ -136,7 +136,7 @@ async def upload_batch(worker_id, batch_id, random_key, version, file_path, file
 
     url = SUBMIT_BATCH_UNIT
 
-    # response = await retry_request_on_fail(create_request, fail_func, False, url)
+    # response = await retry_request_on_fail(create_request, fail_func, False, False, url)
     response = await create_request(url)
     if response.status == 200:
         print(f"Successfully uploaded batch: worker_id: {worker_id} batch_id: {batch_id} | file_path: {file_path}")
@@ -188,17 +188,19 @@ async def download_batch(worker_id, batch_id, batch_type, batch_content, random_
         except MarkExclusion:
             print(f"Marking as exclusion: batch_id: {batch_id} | blog_name: {blog_name}")
             await submit_exclusion(worker_id, batch_id, random_key, blog_name, session)
+            blog_domain = f"{blog_name}.blogspot.com"
             batch_file.start_blog(WORKER_VERSION, blog_name, blog_domain, "e", first_blog)
             batch_file.end_blog()
         except NoEntries:
             print(f"Blog has no posts: batch_id: {batch_id} | blog_name: {blog_name}")
-            batch_file.start_blog(WORKER_VERSION, blog_name, f"{blog_name}.blogspot.com", "a", first_blog)
+            blog_domain = f"{blog_name}.blogspot.com"
+            batch_file.start_blog(WORKER_VERSION, blog_name, blog_domain, "a", first_blog)
             batch_file.end_blog()
 
 
     if batch_type == "list":
-        batch_size = 5
-        print("Downloading domain list")
+        # batch_size = 5
+        print("Downloading multiple domains (list)")
         for i in range(batch_size):
             blog_name = domains.readline().replace("\n", "")
             if blog_name != "":
@@ -226,18 +228,42 @@ async def download_batch(worker_id, batch_id, batch_type, batch_content, random_
     print(f"Deleting batch file | file_path: {file_path} | status: {upload_response}")
     os.remove(file_path)
 
-async def retry_request_on_fail(func, fail_func, check_text, *args, **kwargs):
+async def retry_request_on_fail(func, fail_func, check_text, check_batch_fail=False, *args, **kwargs):
 
     total_slept = 0
     sleep_amount = MASTER_SLEEP_INCREMENT
 
     while total_slept < MASTER_SLEEP_TOTAL:
-        response = await func(*args, **kwargs)
-        if check_text:
-            text = await(response.text())
-            print(text)
-            if text != "Fail" and response.status == 200:
-                # print("Success!")
+        try:
+            response = await func(*args, **kwargs)
+            if check_batch_fail:
+                text = await response.text()
+                obj = json.loads(text)
+                if "batchID" in obj and obj["batchID"] != "Fail":
+                    return response
+                else:
+                    fail_func(response.status)
+                    print(f"Retrying request | sleep_amount: {sleep_amount} total_slept: {total_slept}")
+                    await asyncio.sleep(sleep_amount)
+                    total_slept += sleep_amount
+                    if sleep_amount < MASTER_SLEEP_MAXIMUM:
+                        sleep_amount += MASTER_SLEEP_INCREMENT
+            elif check_text:
+                text = await(response.text())
+                print(text)
+                if text != "Fail" and response.status == 200:
+                    # print("Success!")
+                    return response
+                else:
+                    fail_func(response.status)
+                    print(f"Retrying request | sleep_amount: {sleep_amount} total_slept: {total_slept}")
+                    await asyncio.sleep(sleep_amount)
+                    total_slept += sleep_amount
+                    if sleep_amount < MASTER_SLEEP_MAXIMUM:
+                        sleep_amount += MASTER_SLEEP_INCREMENT
+
+            elif response.status == 200:
+                print("Success!")
                 return response
             else:
                 fail_func(response.status)
@@ -246,17 +272,14 @@ async def retry_request_on_fail(func, fail_func, check_text, *args, **kwargs):
                 total_slept += sleep_amount
                 if sleep_amount < MASTER_SLEEP_MAXIMUM:
                     sleep_amount += MASTER_SLEEP_INCREMENT
-
-        elif response.status == 200:
-            print("Success!")
-            return response
-        else:
-            fail_func(response.status)
+        except asyncio.TimeoutError:
+            fail_func()
             print(f"Retrying request | sleep_amount: {sleep_amount} total_slept: {total_slept}")
             await asyncio.sleep(sleep_amount)
             total_slept += sleep_amount
             if sleep_amount < MASTER_SLEEP_MAXIMUM:
                 sleep_amount += MASTER_SLEEP_INCREMENT
+
 
     print(f"Request retry reached max ({MASTER_SLEEP_TOTAL} seconds)")
     sys.exit(1)
@@ -295,14 +318,19 @@ async def main():
 
 async def download_domains():
     async with aiohttp.ClientSession() as session:
+
+        def fail_func():
+            print(f"Failed to get domains.txt, retrying")
+
+        domains_response = await retry_request_on_fail(session.get, fail_func, False, False, "https://blogspot-comments-master.herokuapp.com/worker/domains.txt")
+
         with open("../domains.txt", "wb") as domains:
-            async with session.get("https://blogspot-comments-master.herokuapp.com/worker/domains.txt") as response:
-                while True:
-                    # download in chunks of 10MB
-                    chunk = await response.content.read((1000 * 1000) * 10)
-                    if not chunk:
-                        break
-                    domains.write(chunk)
+            while True:
+                # download in chunks of 10MB
+                chunk = await domains_response.content.read((1000 * 1000) * 10)
+                if not chunk:
+                    break
+                domains.write(chunk)
 
 if __name__ == '__main__':
 

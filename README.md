@@ -10,7 +10,7 @@ This worker also runs on Heroku. To deploy to Heroku, follow these steps:
 - Install the [pull](https://github.com/apps/pull) app to your fork for automatic worker updates as needed
 - [Create a new app](https://dashboard.heroku.com/new-app) on Heroku
 - Go to the *Deploy* tab on your Heroku app and link your GitHub repo fork. Enable automatic deploys.
-- Go to the *Resources* tab on your Heroku app and ensure the *worker* dyno is enabled.
+- Go to the *Resources* tab on your Heroku app and ensure the *worker* dyno is enabled. (You may need to refresh the page to see the *worker* dyno option.
 
 ### Resource Cost
 A worst case example of the cost of getting a single comment (single page)

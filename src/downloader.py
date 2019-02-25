@@ -1,4 +1,4 @@
-import json, asyncio, aiohttp, logging
+import json, asyncio, aiohttp, logging, traceback
 from time import perf_counter
 
 import sys
@@ -31,7 +31,8 @@ downloaders_paused = 0
 downloader_tasks = []
 
 session_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
-session_timeout = aiohttp.ClientTimeout(total=20)
+session_timeout = None
+session_connector = None
 session = None
 chars = string.ascii_letters + string.digits
 
@@ -41,6 +42,8 @@ async def downloader(name, batch_file, queue):
 	global downloaders_paused
 	global session
 	global session_headers
+	global session_connector
+	global session_timeout
 	global downloaders_finished
 
 	worker_posts_downloaded = 0
@@ -65,21 +68,24 @@ async def downloader(name, batch_file, queue):
 			# 	file.write(json.dumps({"url": url, "comments": comments}))
 
 			total_time = perf_counter() - time_start
-			print_downloader_progress(name, starting_post, posts_finished, blog_posts, total_time)
+			print_downloader_progress(name, batch_file.file_name, starting_post, posts_finished, blog_posts, total_time)
 			print_downloader_status(name, downloaders_paused, downloaders_finished)
 			posts_finished += 1
-		except (asyncio.TimeoutError, TypeError, aiohttp.client_exceptions.ClientOSError):
-			print(f"{name} | Request timed out")
-			requeue_url(name, url, worker_posts_requeued)
+		except (asyncio.TimeoutError, aiohttp.client_exceptions.ClientOSError) as e:
+
+			print(f"{name} | Retry reason: {traceback.format_exc()}")
+
+			print(f"{name} | {batch_file.file_name} | Request timed out, requeueing in 5 seconds")
 			await asyncio.sleep(5)
+			requeue_url(name, url, worker_posts_requeued)
 
 	def requeue_url(name, url, worker_posts_requeued):
 		print(f"{name} | Requeuing post: \'{get_url_path(url)}\'")
 		queue.append(url)
 		worker_posts_requeued += 1
 
-	def print_downloader_progress(name, starting_post, posts_finished, blog_posts, total_time):
-		print(f"{name} | [PROGRESS] Post {starting_post + posts_finished + 1}/{len(blog_posts)} | Total time running: {format(total_time, '.2f')}s")
+	def print_downloader_progress(name, batch_name, starting_post, posts_finished, blog_posts, total_time):
+		print(f"{name} | [PROGRESS] {batch_file.file_name} | Post {starting_post + posts_finished + 1}/{len(blog_posts)} | Total time running: {format(total_time, '.2f')}s")
 
 	def print_downloader_status(name, downloaders_paused, downloaders_finished):
 		print(f"{name} | downloaders_paused: {downloaders_paused} downloaders_finished: {downloaders_finished}\n")
@@ -99,6 +105,7 @@ async def downloader(name, batch_file, queue):
 				worker_posts_downloaded += 1
 			except json.decoder.JSONDecodeError as e:
 				try:
+					print(f"{name} | Pause reason: {traceback.format_exc()}")
 					print(f"{name} | Paused due to rate limit")
 					print_downloader_status(name, downloaders_paused, downloaders_finished)
 					downloaders_should_pause = True
@@ -121,7 +128,9 @@ async def downloader(name, batch_file, queue):
 					print("All downloaders paused, restarting session")
 					print_downloader_status(name, downloaders_paused, downloaders_finished)
 					await session.close()
-					session = aiohttp.ClientSession(headers=session_headers, timeout=session_timeout)
+					session_timeout = aiohttp.ClientTimeout(total=20)
+					session_connector = aiohttp.TCPConnector(limit=30)
+					session = aiohttp.ClientSession(connector=session_connector, headers=session_headers, timeout=session_timeout)
 					downloaders_should_pause = False
 
 	downloaders_finished += 1
@@ -134,6 +143,8 @@ async def download_blog(__blog_posts, __batch_file, __exclude_limit, __starting_
 	global time_start
 	global session
 	global session_headers
+	global session_connector
+	global session_timeout
 	global downloader_count
 	global downloader_tasks
 	global downloaders_finished
@@ -153,7 +164,9 @@ async def download_blog(__blog_posts, __batch_file, __exclude_limit, __starting_
 	downloader_tasks = []
 
 	if not session:
-		session = aiohttp.ClientSession(headers=session_headers, timeout=session_timeout)
+		session_timeout = aiohttp.ClientTimeout(total=20)
+		session_connector = aiohttp.TCPConnector(limit=30)
+		session = aiohttp.ClientSession(connector=session_connector, headers=session_headers, timeout=session_timeout)
 
 	queue = []
 	for post in blog_posts[starting_post:]:
@@ -186,16 +199,18 @@ async def main():
 
 			batch_file = BatchFile("../output/", 120312)
 			
-			blog_posts = json.loads(file2.read())
-			blog_posts_2 = json.loads(file.read())
+			# blog_posts = json.loads(file2.read())
+			# blog_posts_2 = json.loads(file.read())
+			
+			blog_posts = ["https://0879181778.blogspot.com/2013/11/20.html"]
 
 			batch_file.start_blog(1, "googleblog", "googleblog.blogspot.com", "a", True)
-			await download_blog(blog_posts, batch_file, __exclude_limit=450, __starting_post=500)
+			await download_blog(blog_posts, batch_file, __exclude_limit=450)
 			batch_file.end_blog()
 
-			batch_file.start_blog(1, "clean", "clean.blogspot.com", "a", False)
-			await download_blog(blog_posts_2, batch_file, __exclude_limit=450, __starting_post=3300)
-			batch_file.end_blog()
+			# batch_file.start_blog(1, "clean", "clean.blogspot.com", "a", False)
+			# await download_blog(blog_posts_2, batch_file, __exclude_limit=450, __starting_post=3300)
+			# batch_file.end_blog()
 
 			batch_file.end_batch()
 

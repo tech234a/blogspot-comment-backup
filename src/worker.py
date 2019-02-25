@@ -202,6 +202,7 @@ async def download_batch(worker_id, batch_id, batch_type, batch_content, random_
         # batch_size = 5
         print("Downloading multiple domains (list)")
         for i in range(batch_size):
+            print(f"[BATCH PROGRESS] {i}/{batch_size}")
             blog_name = domains.readline().replace("\n", "")
             if blog_name != "":
                 first_blog = (i == 0)

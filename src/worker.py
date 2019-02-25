@@ -25,7 +25,7 @@ SUBMIT_BATCH_UNIT = f"{UPLOAD_SERVER}/submitBatchUnit"
 # VERIFY_BATCH_UNIT = f"{UPLOAD_SERVER}/getVerifyBatchUnit"
 
 WORKER_VERSION = 1
-WORKER_BATCH_SIZE = 1000
+WORKER_BATCH_SIZE = 500
 
 # Stop trying to connect to master after 18 hours
 MASTER_SLEEP_TOTAL = (60 * 60) * 18

@@ -25,7 +25,7 @@ SUBMIT_BATCH_UNIT = f"{UPLOAD_SERVER}/submitBatchUnit"
 # VERIFY_BATCH_UNIT = f"{UPLOAD_SERVER}/getVerifyBatchUnit"
 
 WORKER_VERSION = 1
-WORKER_BATCH_SIZE = 500
+# WORKER_BATCH_SIZE = 500
 
 # Stop trying to connect to master after 18 hours
 MASTER_SLEEP_TOTAL = (60 * 60) * 18
@@ -63,7 +63,8 @@ async def get_batch(worker_id, session):
             "file_offset": obj["offset"], 
             "exclusion_limit": obj["limit"],
             "batch_type": obj["assignmentType"],
-            "content": obj["content"]
+            "content": obj["content"],
+            "batch_size": obj["batchSize"]
         }
 
 async def update_batch_status(worker_id, batch_id, random_key, status, session):
@@ -305,10 +306,11 @@ async def main():
                         batch_type = batch["batch_type"]
                         random_key = batch["random_key"]
                         batch_content = batch["content"]
+                        batch_size = batch["batch_size"]
                         offset = int(batch["file_offset"])
                         exclusion_limit = int(batch["exclusion_limit"])
 
-                        await download_batch(worker_id, batch_id, batch_type, batch_content, random_key, WORKER_BATCH_SIZE, offset, domains, exclusion_limit, session)
+                        await download_batch(worker_id, batch_id, batch_type, batch_content, random_key, batch_size, offset, domains, exclusion_limit, session)
                     else:
                         print("Unable to get batch")
 

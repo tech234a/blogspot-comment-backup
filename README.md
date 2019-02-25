@@ -3,7 +3,7 @@
 A project to archive comments from [blogspot](https://www.blogger.com/) blogs
 
 ### Running this worker:
-You can run this worker by running `python3 src/worker.py` from the root directory of this project. Python 3.7.2 is recommended and the `aiohttp` and `tldextract` modules are required. (You can install `aiohttp` and `tldextract` by running `pip install aiohttp tldextract`.)
+You can run this worker by running `python3 worker.py` from the `src` directory of this project. Python 3.7.2 is recommended and the `aiohttp` and `tldextract` modules are required. (You can install `aiohttp` and `tldextract` by running `pip install aiohttp tldextract`.)
 
 This worker also runs on Heroku. To deploy to Heroku, follow these steps:
 - Fork this repo

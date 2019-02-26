@@ -1,4 +1,4 @@
-import asyncio, aiohttp, json, tldextract, sys, os, logging
+import asyncio, aiohttp, json, tldextract, sys, os, logging, signal, time
 
 from aiohttp import FormData
 
@@ -37,6 +37,15 @@ MASTER_SLEEP_INCREMENT = 30
 # Stop multiplying after 180 seconds
 # MASTER_SLEEP_MAXIMUM = 10
 MASTER_SLEEP_MAXIMUM = 180
+
+class GracefulKiller:
+  kill_now = False
+  def __init__(self):
+    signal.signal(signal.SIGINT, self.exit_gracefully)
+    signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+  def exit_gracefully(self,signum, frame):
+    self.kill_now = True
 
 async def get_worker_id(session):
 
@@ -370,6 +379,8 @@ async def download_domains():
                 domains.write(chunk)
 
 if __name__ == '__main__':
+  killer = GracefulKiller()
+
 
     # create the output folder for the gzipped batches
     if not os.path.isdir("../output"):

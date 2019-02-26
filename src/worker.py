@@ -379,7 +379,7 @@ async def download_domains():
                 domains.write(chunk)
 
 if __name__ == '__main__':
-  killer = GracefulKiller()
+    killer = GracefulKiller()
 
 
     # create the output folder for the gzipped batches

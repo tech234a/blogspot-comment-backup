@@ -1,4 +1,4 @@
-import asyncio, aiohttp, json, tldextract, sys, os, logging, signal, time
+import asyncio, aiohttp, json, tldextract, sys, os, logging, signal
 
 from aiohttp import FormData
 

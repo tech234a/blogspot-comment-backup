@@ -44,7 +44,7 @@ class GracefulKiller:
     signal.signal(signal.SIGINT, self.exit_gracefully)
     signal.signal(signal.SIGTERM, self.exit_gracefully)
 
-  def exit_gracefully(self,signum, frame):
+  def exit_gracefully(self, signum, frame):
     self.kill_now = True
 
 async def get_worker_id(session):
@@ -330,7 +330,7 @@ async def retry_request_on_fail(func, fail_func, check_text, check_batch_fail=Fa
 
 async def main():
 
-    logging.basicConfig(format="%(message)s", level=logging.INFO)
+    # logging.basicConfig(format="%(message)s", level=logging.INFO)
 
     with open("../domains.txt", "r") as domains:
         async with aiohttp.ClientSession() as session:

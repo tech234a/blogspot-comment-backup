@@ -1,4 +1,4 @@
-import asyncio, aiohttp, json, tldextract, sys, os
+import asyncio, aiohttp, json, tldextract, sys, os, logging
 
 from aiohttp import FormData
 
@@ -171,6 +171,9 @@ async def download_batch(worker_id, batch_id, batch_type, batch_content, random_
         try:
             print(f"Downloading blog: {blog_name}")
             blog_posts = await get_blog_posts(f"https://{blog_name}.blogspot.com", exclusion_limit, session)
+            for i, post in enumerate(blog_posts):
+                if post.startswith("https:///"):
+                    blog_posts[i] = post.replace("https://", f"https://{blog_name}.blogspot.com")
             # The blog cannot be found / is deleted
             if blog_posts == "nf":
                 print(f"Marking as deleted: batch_id: {batch_id} | blog_name: {blog_name}")
@@ -318,6 +321,8 @@ async def retry_request_on_fail(func, fail_func, check_text, check_batch_fail=Fa
 
 async def main():
 
+    logging.basicConfig(format="%(message)s", level=logging.INFO)
+
     with open("../domains.txt", "r") as domains:
         async with aiohttp.ClientSession() as session:
             print("Requesting worker ID")
@@ -328,6 +333,7 @@ async def main():
                 while True:
                     print("Requesting new batch...")
                     batch = await get_batch(worker_id, session)
+                    # batch = {"batch_id": 99, "batch_type": "domain", "random_key": 2938, "content": "0cal", "batch_size": 250, "file_offset": 2323, "exclusion_limit": 450}
                     print(f"Received batch: {batch}")
                     if batch:
                         batch_id = batch["batch_id"]

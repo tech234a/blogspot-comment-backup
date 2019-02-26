@@ -30,6 +30,8 @@ downloaders_should_pause = False
 downloaders_paused = 0
 downloader_tasks = []
 
+restarting_session = False
+
 session_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0"}
 session_timeout = None
 session_connector = None
@@ -45,6 +47,7 @@ async def downloader(name, batch_file, queue):
 	global session_connector
 	global session_timeout
 	global downloaders_finished
+	global restarting_session
 
 	worker_posts_downloaded = 0
 	worker_posts_requeued = 0
@@ -108,7 +111,8 @@ async def downloader(name, batch_file, queue):
 					print(f"{name} | Pause reason: {traceback.format_exc()}")
 					print(f"{name} | Paused due to rate limit")
 					print_downloader_status(name, downloaders_paused, downloaders_finished)
-					downloaders_should_pause = True
+					if not downloaders_should_pause:
+						downloaders_should_pause = True
 					# Add the url back to the queue for another task do pick up
 					requeue_url(name, url, worker_posts_requeued)
 				except Exception as e:
@@ -117,21 +121,24 @@ async def downloader(name, batch_file, queue):
 				exit(e)
 
 		else:
-			await asyncio.sleep(2)
+			await asyncio.sleep(5)
 			if not paused:
 				paused = True
 				downloaders_paused += 1
+			else:
+				print(f"{name} | Waiting for all downloaders to pause")
+				print_downloader_status(name, downloaders_paused, downloaders_finished)
 
-				if downloaders_paused == downloader_count - downloaders_finished:
-					# sleep for a bit so we don't resume right after hitting the captcha page
-					await asyncio.sleep(10)
-					print("All downloaders paused, restarting session")
-					print_downloader_status(name, downloaders_paused, downloaders_finished)
-					await session.close()
-					session_timeout = aiohttp.ClientTimeout(total=20)
-					session_connector = aiohttp.TCPConnector(limit=30)
-					session = aiohttp.ClientSession(connector=session_connector, headers=session_headers, timeout=session_timeout)
-					downloaders_should_pause = False
+			if not restarting_session and downloaders_should_pause and downloaders_paused >= (downloader_count - downloaders_finished):
+				restarting_session = True
+				# sleep for a bit so we don't resume right after hitting the captcha page
+				await asyncio.sleep(10)
+				print("All downloaders paused, restarting session")
+				print_downloader_status(name, downloaders_paused, downloaders_finished)
+				await session.close()
+				session = aiohttp.ClientSession(connector=session_connector, headers=session_headers, timeout=session_timeout, connector_owner=False)
+				downloaders_should_pause = False
+				restarting_session = False
 
 	downloaders_finished += 1
 	print(f"{name} DONE | Posts Downloaded: {worker_posts_downloaded} | Posts Requeued: {worker_posts_requeued}")
@@ -166,7 +173,7 @@ async def download_blog(__blog_posts, __batch_file, __exclude_limit, __starting_
 	if not session:
 		session_timeout = aiohttp.ClientTimeout(total=20)
 		session_connector = aiohttp.TCPConnector(limit=30)
-		session = aiohttp.ClientSession(connector=session_connector, headers=session_headers, timeout=session_timeout)
+		session = aiohttp.ClientSession(connector=session_connector, headers=session_headers, timeout=session_timeout, connector_owner=False)
 
 	queue = []
 	for post in blog_posts[starting_post:]:
@@ -200,12 +207,12 @@ async def main():
 			batch_file = BatchFile("../output/", 120312)
 			
 			# blog_posts = json.loads(file2.read())
-			# blog_posts_2 = json.loads(file.read())
+			blog_posts_2 = json.loads(file.read())
 			
-			blog_posts = ["https://0879181778.blogspot.com/2013/11/20.html"]
+			# blog_posts = ["https://0879181778.blogspot.com/2013/11/20.html"]
 
 			batch_file.start_blog(1, "googleblog", "googleblog.blogspot.com", "a", True)
-			await download_blog(blog_posts, batch_file, __exclude_limit=450)
+			await download_blog(blog_posts_2, batch_file, __exclude_limit=450)
 			batch_file.end_blog()
 
 			# batch_file.start_blog(1, "clean", "clean.blogspot.com", "a", False)

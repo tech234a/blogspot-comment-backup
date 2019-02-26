@@ -38,6 +38,8 @@ session_connector = None
 session = None
 chars = string.ascii_letters + string.digits
 
+log_cooldown = 0
+
 async def downloader(name, batch_file, queue):
 
 	global downloaders_should_pause
@@ -58,6 +60,7 @@ async def downloader(name, batch_file, queue):
 		global time_start
 		global session
 		global chars
+		global log_cooldown
 		try:
 			comments = await get_comments_from_post(url, session, get_all_pages=True, get_replies=True, get_comment_plus_ones=True, get_reply_plus_ones=True)
 
@@ -71,8 +74,12 @@ async def downloader(name, batch_file, queue):
 			# 	file.write(json.dumps({"url": url, "comments": comments}))
 
 			total_time = perf_counter() - time_start
-			print_downloader_progress(name, batch_file.file_name, starting_post, posts_finished, blog_posts, total_time)
-			print_downloader_status(name, downloaders_paused, downloaders_finished)
+			if log_cooldown >= 20 or downloaders_should_pause or restarting_session:
+				print_downloader_progress(name, batch_file.file_name, starting_post, posts_finished, blog_posts, total_time)
+				print_downloader_status(name, downloaders_paused, downloaders_finished)
+				log_cooldown = 0
+			else:
+				log_cooldown += 1
 			posts_finished += 1
 		except (asyncio.TimeoutError, aiohttp.client_exceptions.ClientOSError) as e:
 

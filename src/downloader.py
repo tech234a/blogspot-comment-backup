@@ -81,11 +81,16 @@ async def downloader(name, batch_file, queue):
 			else:
 				log_cooldown += 1
 			posts_finished += 1
-		except (asyncio.TimeoutError, aiohttp.client_exceptions.ClientOSError) as e:
+		except (
+				asyncio.TimeoutError, 
+				aiohttp.client_exceptions.ServerDisconnectedError, 
+				aiohttp.client_exceptions.ClientOSError,
+				aiohttp.client_exceptions.ClientConnectorError
+			) as e:
 
 			print(f"{name} | Retry reason: {traceback.format_exc()}")
 
-			print(f"{name} | {batch_file.file_name} | Request timed out, requeueing in 5 seconds")
+			print(f"{name} | {batch_file.file_name} | Request timed out, requeuing in 5 seconds")
 			await asyncio.sleep(5)
 			requeue_url(name, url, worker_posts_requeued)
 

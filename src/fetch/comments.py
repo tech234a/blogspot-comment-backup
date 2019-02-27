@@ -208,7 +208,8 @@ async def test_urls():
         # "https://blogger-developers.googleblog.com/2013/04/improvements-to-blogger-template-html.html",
         # "https://0-1-2-3-sp1.blogspot.com/2014/03/pirackie-podchody.html",
         # "https://0879181778.blogspot.com/2016/07/20.html",
-        "https://0879181778.blogspot.com/2013/11/20.html"
+        # "https://0879181778.blogspot.com/2013/11/20.html"
+        "https://blogger.googleblog.com/2019/01/an-update-on-google-and-blogger.html"
     ]
 
     async with aiohttp.ClientSession() as session:
@@ -219,11 +220,11 @@ async def test_urls():
         total_elapsed = 0
         for i in range(runs):
             t0 = perf_counter()
-            comments = await get_comments_from_post(test_urls[0], session, get_all_pages=False, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False)
+            comments = await get_comments_from_post(test_urls[0], session, get_all_pages=True, get_replies=False, get_comment_plus_ones=False, get_reply_plus_ones=False)
             t1 = perf_counter() - t0
             total_elapsed += t1
         print("Took %f seconds with average %f" % (total_elapsed, total_elapsed / runs))
-        print(comments)
+        print(json.dumps(comments, indent=4))
 
 if __name__ == '__main__':
     asyncio.run(test_urls())

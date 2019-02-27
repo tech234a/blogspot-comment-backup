@@ -359,7 +359,19 @@ async def main():
                         offset = int(batch["file_offset"])
                         exclusion_limit = int(batch["exclusion_limit"])
 
-                        await download_batch(worker_id, batch_id, batch_type, batch_content, random_key, batch_size, offset, domains, exclusion_limit, session)
+                        for i in range(5):
+                            try:
+                                await download_batch(worker_id, batch_id, batch_type, batch_content, random_key, batch_size, offset, domains, exclusion_limit, session)
+                                break
+                            except (
+                                asyncio.TimeoutError, 
+                                aiohttp.client_exceptions.ServerDisconnectedError, 
+                                aiohttp.client_exceptions.ClientOSError,
+                                aiohttp.client_exceptions.ClientConnectorError
+                            ):
+                                print(f"Retrying downloading of batch in 10 seconds: batch_id: {batch_id}")
+                                await asyncio.sleep(10)
+
                     else:
                         print("Unable to get batch")
 
@@ -386,7 +398,6 @@ async def download_domains():
 
 if __name__ == '__main__':
     killer = GracefulKiller()
-
 
     # create the output folder for the gzipped batches
     if not os.path.isdir("../output"):
